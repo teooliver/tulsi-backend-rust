@@ -8,7 +8,9 @@ mod models;
 mod repositories;
 mod routes;
 
+use repositories::project_repository::ProjectRepository;
 use repositories::task_repository::TaskRepository;
+use routes::project_routes::project_routes;
 use routes::task_routes::task_routes;
 
 #[tokio::main]
@@ -25,15 +27,22 @@ async fn main() {
         .await
         .expect("Failed to connect to Postgres");
 
-    // Run migration
+    // Run migrations
     sqlx::raw_sql(include_str!("../migrations/001_create_tasks.sql"))
         .execute(&pool)
         .await
         .expect("Failed to run migrations");
+    sqlx::raw_sql(include_str!("../migrations/002_create_projects.sql"))
+        .execute(&pool)
+        .await
+        .expect("Failed to run migrations");
 
-    let task_repo = Arc::new(TaskRepository::new(pool));
+    let task_repo = Arc::new(TaskRepository::new(pool.clone()));
+    let project_repo = Arc::new(ProjectRepository::new(pool));
 
-    let app = task_routes(task_repo).layer(CorsLayer::permissive());
+    let app = task_routes(task_repo)
+        .merge(project_routes(project_repo))
+        .layer(CorsLayer::permissive());
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
         .await
