@@ -4,23 +4,22 @@ use sqlx::FromRow;
 use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize, FromRow)]
-pub struct Project {
+pub struct Board {
     pub id: Uuid,
     pub name: String,
     pub description: String,
-    pub board_id: Option<Uuid>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct CreateProject {
+pub struct CreateBoard {
     pub name: String,
     pub description: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct UpdateProject {
+pub struct UpdateBoard {
     pub name: Option<String>,
     pub description: Option<String>,
 }

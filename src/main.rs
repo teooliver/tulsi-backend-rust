@@ -8,8 +8,10 @@ mod models;
 mod repositories;
 mod routes;
 
+use repositories::board_repository::BoardRepository;
 use repositories::project_repository::ProjectRepository;
 use repositories::task_repository::TaskRepository;
+use routes::board_routes::board_routes;
 use routes::project_routes::project_routes;
 use routes::task_routes::task_routes;
 
@@ -36,12 +38,18 @@ async fn main() {
         .execute(&pool)
         .await
         .expect("Failed to run migrations");
+    sqlx::raw_sql(include_str!("../migrations/003_create_boards.sql"))
+        .execute(&pool)
+        .await
+        .expect("Failed to run migrations");
 
     let task_repo = Arc::new(TaskRepository::new(pool.clone()));
-    let project_repo = Arc::new(ProjectRepository::new(pool));
+    let project_repo = Arc::new(ProjectRepository::new(pool.clone()));
+    let board_repo = Arc::new(BoardRepository::new(pool));
 
     let app = task_routes(task_repo)
         .merge(project_routes(project_repo))
+        .merge(board_routes(board_repo))
         .layer(CorsLayer::permissive());
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
