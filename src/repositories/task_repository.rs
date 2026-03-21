@@ -27,11 +27,12 @@ impl TaskRepository {
 
     pub async fn create(&self, input: CreateTask) -> Result<Task, sqlx::Error> {
         sqlx::query_as::<_, Task>(
-            "INSERT INTO tasks (title, description, project_id) VALUES ($1, $2, $3) RETURNING *",
+            "INSERT INTO tasks (title, description, project_id, assigned_to) VALUES ($1, $2, $3, $4) RETURNING *",
         )
         .bind(&input.title)
         .bind(input.description.unwrap_or_default())
         .bind(input.project_id)
+        .bind(input.assigned_to)
         .fetch_one(&self.pool)
         .await
     }
@@ -42,6 +43,7 @@ impl TaskRepository {
                 title = COALESCE($2, title),
                 description = COALESCE($3, description),
                 project_id = CASE WHEN $4 THEN $5 ELSE project_id END,
+                assigned_to = CASE WHEN $6 THEN $7 ELSE assigned_to END,
                 updated_at = NOW()
             WHERE id = $1
             RETURNING *",
@@ -51,6 +53,8 @@ impl TaskRepository {
         .bind(&input.description)
         .bind(input.project_id.is_some())
         .bind(input.project_id)
+        .bind(input.assigned_to.is_some())
+        .bind(input.assigned_to)
         .fetch_optional(&self.pool)
         .await
     }
