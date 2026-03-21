@@ -10,6 +10,7 @@ pub struct Task {
     pub description: String,
     pub project_id: Option<Uuid>,
     pub assigned_to: Option<Uuid>,
+    pub column_id: Option<Uuid>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -20,6 +21,7 @@ pub struct CreateTask {
     pub description: Option<String>,
     pub project_id: Option<Uuid>,
     pub assigned_to: Option<Uuid>,
+    pub column_id: Option<Uuid>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -28,4 +30,5 @@ pub struct UpdateTask {
     pub description: Option<String>,
     pub project_id: Option<Uuid>,
     pub assigned_to: Option<Uuid>,
+    pub column_id: Option<Uuid>,
 }
