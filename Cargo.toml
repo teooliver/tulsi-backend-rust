@@ -1,3 +1,7 @@
+[workspace]
+members = [".", "crates/tulsi-seed"]
+resolver = "3"
+
 [package]
 name = "tulsi-rust-backend"
 version = "0.1.0"
