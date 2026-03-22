@@ -1,6 +1,13 @@
+use axum::Router;
 use sqlx::PgPool;
 use sqlx::postgres::PgPoolOptions;
 use std::time::Duration;
+
+// Used by http_*_test.rs and workflow_kanban_test.rs (false unused warning from repository tests)
+pub async fn setup_test_app() -> Router {
+    let pool = setup_test_db().await;
+    tulsi_rust_backend::build_app(pool)
+}
 
 pub async fn setup_test_db() -> PgPool {
     let database_url = std::env::var("TEST_DATABASE_URL").unwrap_or_else(|_| {
