@@ -1,12 +1,18 @@
 use axum::Router;
+use metrics_exporter_prometheus::PrometheusBuilder;
 use sqlx::PgPool;
 use sqlx::postgres::PgPoolOptions;
 use std::time::Duration;
 
-// Used by http_*_test.rs and workflow_kanban_test.rs (false unused warning from repository tests)
+// Used by http_*_test.rs and workflow_kanban_test.rs
+// This is a common pattern for test helper modules — Rust's dead code analysis doesn't see cross-file usage within the `tests/` directory.
+#[allow(dead_code)]
 pub async fn setup_test_app() -> Router {
     let pool = setup_test_db().await;
-    tulsi_rust_backend::build_app(pool)
+    let prometheus_handle = PrometheusBuilder::new()
+        .install_recorder()
+        .expect("failed to install Prometheus recorder");
+    tulsi_rust_backend::build_app(pool, prometheus_handle)
 }
 
 pub async fn setup_test_db() -> PgPool {
@@ -54,12 +60,10 @@ pub async fn setup_test_db() -> PgPool {
         .expect("Failed to run migration 005");
 
     // Clean data before each test
-    sqlx::raw_sql(
-        "TRUNCATE tasks, columns, projects, boards, users RESTART IDENTITY CASCADE",
-    )
-    .execute(&pool)
-    .await
-    .expect("Failed to clean up test database");
+    sqlx::raw_sql("TRUNCATE tasks, columns, projects, boards, users RESTART IDENTITY CASCADE")
+        .execute(&pool)
+        .await
+        .expect("Failed to clean up test database");
 
     pool
 }

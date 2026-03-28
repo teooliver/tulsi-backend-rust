@@ -1,9 +1,10 @@
 use sqlx::postgres::PgPoolOptions;
 use tower_http::cors::CorsLayer;
+use tulsi_rust_backend::observability;
 
 #[tokio::main]
 async fn main() {
-    tracing_subscriber::fmt::init();
+    let prometheus_handle = observability::init_observability();
 
     let database_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
         "postgres://db_user_test:12345@localhost:5432/tulsi_test_db".to_string()
@@ -37,7 +38,8 @@ async fn main() {
         .await
         .expect("Failed to run migrations");
 
-    let app = tulsi_rust_backend::build_app(pool).layer(CorsLayer::permissive());
+    let app = tulsi_rust_backend::build_app(pool, prometheus_handle)
+        .layer(CorsLayer::permissive());
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
         .await
