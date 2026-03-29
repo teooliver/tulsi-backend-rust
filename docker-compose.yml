@@ -25,6 +25,17 @@ services:
     volumes:
       - pgdata_test:/var/lib/postgresql/data
 
+  app:
+    build: .
+    container_name: tulsi-backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://db_user_test:12345@db:5432/tulsi_test_db
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
+
 volumes:
   pgdata:
   pgdata_test:
