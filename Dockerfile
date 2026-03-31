@@ -1,5 +1,5 @@
 # Stage 1: Build
-FROM rust:1.85-bookworm AS builder
+FROM rust:1.88 AS builder
 
 WORKDIR /app
 
@@ -33,7 +33,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
 
 COPY --from=builder /app/target/release/tulsi-rust-backend /usr/local/bin/tulsi-rust-backend
 
-ENV DATABASE_URL=postgres://db_user_test:12345@db:5432/tulsi_test_db
+# Removing this for now, the value will be injected at runtime by K3s.
+# ENV DATABASE_URL=postgres://db_user_test:12345@db:5432/tulsi_test_db
 
 EXPOSE 3000
 
