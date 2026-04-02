@@ -8,9 +8,19 @@ use axum::{
 };
 use uuid::Uuid;
 
-use crate::models::board::{CreateBoard, UpdateBoard};
+use crate::models::board::{Board, CreateBoard, UpdateBoard};
+use crate::models::project::Project;
 use crate::repositories::board_repository::BoardRepository;
 
+#[utoipa::path(
+    get,
+    path = "/boards",
+    responses(
+        (status = 200, description = "List all boards", body = Vec<Board>),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Boards"
+)]
 pub async fn list_boards(
     State(repo): State<Arc<BoardRepository>>,
 ) -> Result<impl IntoResponse, StatusCode> {
@@ -20,6 +30,17 @@ pub async fn list_boards(
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
 
+#[utoipa::path(
+    get,
+    path = "/boards/{id}",
+    params(("id" = Uuid, Path, description = "Board ID")),
+    responses(
+        (status = 200, description = "Board found", body = Board),
+        (status = 404, description = "Board not found"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Boards"
+)]
 pub async fn get_board(
     State(repo): State<Arc<BoardRepository>>,
     Path(id): Path<Uuid>,
@@ -31,6 +52,16 @@ pub async fn get_board(
     }
 }
 
+#[utoipa::path(
+    post,
+    path = "/boards",
+    request_body = CreateBoard,
+    responses(
+        (status = 201, description = "Board created", body = Board),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Boards"
+)]
 pub async fn create_board(
     State(repo): State<Arc<BoardRepository>>,
     Json(input): Json<CreateBoard>,
@@ -41,6 +72,18 @@ pub async fn create_board(
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
 
+#[utoipa::path(
+    put,
+    path = "/boards/{id}",
+    params(("id" = Uuid, Path, description = "Board ID")),
+    request_body = UpdateBoard,
+    responses(
+        (status = 200, description = "Board updated", body = Board),
+        (status = 404, description = "Board not found"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Boards"
+)]
 pub async fn update_board(
     State(repo): State<Arc<BoardRepository>>,
     Path(id): Path<Uuid>,
@@ -53,6 +96,17 @@ pub async fn update_board(
     }
 }
 
+#[utoipa::path(
+    delete,
+    path = "/boards/{id}",
+    params(("id" = Uuid, Path, description = "Board ID")),
+    responses(
+        (status = 204, description = "Board deleted"),
+        (status = 404, description = "Board not found"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Boards"
+)]
 pub async fn delete_board(
     State(repo): State<Arc<BoardRepository>>,
     Path(id): Path<Uuid>,
@@ -64,6 +118,17 @@ pub async fn delete_board(
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/boards/{id}/projects",
+    params(("id" = Uuid, Path, description = "Board ID")),
+    responses(
+        (status = 200, description = "List board's projects", body = Vec<Project>),
+        (status = 404, description = "Board not found"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Boards"
+)]
 pub async fn list_board_projects(
     State(repo): State<Arc<BoardRepository>>,
     Path(id): Path<Uuid>,

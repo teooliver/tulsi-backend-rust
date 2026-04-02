@@ -8,9 +8,19 @@ use axum::{
 };
 use uuid::Uuid;
 
-use crate::models::user::{CreateUser, UpdateUser};
+use crate::models::user::{CreateUser, UpdateUser, User};
+use crate::models::task::Task;
 use crate::repositories::user_repository::UserRepository;
 
+#[utoipa::path(
+    get,
+    path = "/users",
+    responses(
+        (status = 200, description = "List all users", body = Vec<User>),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Users"
+)]
 pub async fn list_users(
     State(repo): State<Arc<UserRepository>>,
 ) -> Result<impl IntoResponse, StatusCode> {
@@ -20,6 +30,17 @@ pub async fn list_users(
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
 
+#[utoipa::path(
+    get,
+    path = "/users/{id}",
+    params(("id" = Uuid, Path, description = "User ID")),
+    responses(
+        (status = 200, description = "User found", body = User),
+        (status = 404, description = "User not found"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Users"
+)]
 pub async fn get_user(
     State(repo): State<Arc<UserRepository>>,
     Path(id): Path<Uuid>,
@@ -31,6 +52,16 @@ pub async fn get_user(
     }
 }
 
+#[utoipa::path(
+    post,
+    path = "/users",
+    request_body = CreateUser,
+    responses(
+        (status = 201, description = "User created", body = User),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Users"
+)]
 pub async fn create_user(
     State(repo): State<Arc<UserRepository>>,
     Json(input): Json<CreateUser>,
@@ -41,6 +72,18 @@ pub async fn create_user(
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
 
+#[utoipa::path(
+    put,
+    path = "/users/{id}",
+    params(("id" = Uuid, Path, description = "User ID")),
+    request_body = UpdateUser,
+    responses(
+        (status = 200, description = "User updated", body = User),
+        (status = 404, description = "User not found"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Users"
+)]
 pub async fn update_user(
     State(repo): State<Arc<UserRepository>>,
     Path(id): Path<Uuid>,
@@ -53,6 +96,17 @@ pub async fn update_user(
     }
 }
 
+#[utoipa::path(
+    delete,
+    path = "/users/{id}",
+    params(("id" = Uuid, Path, description = "User ID")),
+    responses(
+        (status = 204, description = "User deleted"),
+        (status = 404, description = "User not found"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Users"
+)]
 pub async fn delete_user(
     State(repo): State<Arc<UserRepository>>,
     Path(id): Path<Uuid>,
@@ -64,6 +118,17 @@ pub async fn delete_user(
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/users/{id}/tasks",
+    params(("id" = Uuid, Path, description = "User ID")),
+    responses(
+        (status = 200, description = "List user's tasks", body = Vec<Task>),
+        (status = 404, description = "User not found"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Users"
+)]
 pub async fn list_user_tasks(
     State(repo): State<Arc<UserRepository>>,
     Path(id): Path<Uuid>,

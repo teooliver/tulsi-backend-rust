@@ -8,9 +8,20 @@ use axum::{
 };
 use uuid::Uuid;
 
-use crate::models::column::{CreateColumn, MoveTask, UpdateColumn};
+use crate::models::column::{Column, CreateColumn, MoveTask, UpdateColumn};
+use crate::models::task::Task;
 use crate::repositories::column_repository::ColumnRepository;
 
+#[utoipa::path(
+    get,
+    path = "/boards/{board_id}/columns",
+    params(("board_id" = Uuid, Path, description = "Board ID")),
+    responses(
+        (status = 200, description = "List board's columns", body = Vec<Column>),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Columns"
+)]
 pub async fn list_board_columns(
     State(repo): State<Arc<ColumnRepository>>,
     Path(board_id): Path<Uuid>,
@@ -21,6 +32,20 @@ pub async fn list_board_columns(
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
 
+#[utoipa::path(
+    get,
+    path = "/boards/{board_id}/columns/{column_id}",
+    params(
+        ("board_id" = Uuid, Path, description = "Board ID"),
+        ("column_id" = Uuid, Path, description = "Column ID")
+    ),
+    responses(
+        (status = 200, description = "Column found", body = Column),
+        (status = 404, description = "Column not found"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Columns"
+)]
 pub async fn get_column(
     State(repo): State<Arc<ColumnRepository>>,
     Path((_board_id, column_id)): Path<(Uuid, Uuid)>,
@@ -32,6 +57,17 @@ pub async fn get_column(
     }
 }
 
+#[utoipa::path(
+    post,
+    path = "/boards/{board_id}/columns",
+    params(("board_id" = Uuid, Path, description = "Board ID")),
+    request_body = CreateColumn,
+    responses(
+        (status = 201, description = "Column created", body = Column),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Columns"
+)]
 pub async fn create_column(
     State(repo): State<Arc<ColumnRepository>>,
     Path(board_id): Path<Uuid>,
@@ -43,6 +79,21 @@ pub async fn create_column(
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
 
+#[utoipa::path(
+    put,
+    path = "/boards/{board_id}/columns/{column_id}",
+    params(
+        ("board_id" = Uuid, Path, description = "Board ID"),
+        ("column_id" = Uuid, Path, description = "Column ID")
+    ),
+    request_body = UpdateColumn,
+    responses(
+        (status = 200, description = "Column updated", body = Column),
+        (status = 404, description = "Column not found"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Columns"
+)]
 pub async fn update_column(
     State(repo): State<Arc<ColumnRepository>>,
     Path((_board_id, column_id)): Path<(Uuid, Uuid)>,
@@ -55,6 +106,20 @@ pub async fn update_column(
     }
 }
 
+#[utoipa::path(
+    delete,
+    path = "/boards/{board_id}/columns/{column_id}",
+    params(
+        ("board_id" = Uuid, Path, description = "Board ID"),
+        ("column_id" = Uuid, Path, description = "Column ID")
+    ),
+    responses(
+        (status = 204, description = "Column deleted"),
+        (status = 404, description = "Column not found"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Columns"
+)]
 pub async fn delete_column(
     State(repo): State<Arc<ColumnRepository>>,
     Path((_board_id, column_id)): Path<(Uuid, Uuid)>,
@@ -66,6 +131,20 @@ pub async fn delete_column(
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/boards/{board_id}/columns/{column_id}/tasks",
+    params(
+        ("board_id" = Uuid, Path, description = "Board ID"),
+        ("column_id" = Uuid, Path, description = "Column ID")
+    ),
+    responses(
+        (status = 200, description = "List column's tasks", body = Vec<Task>),
+        (status = 404, description = "Column not found"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Columns"
+)]
 pub async fn list_column_tasks(
     State(repo): State<Arc<ColumnRepository>>,
     Path((_board_id, column_id)): Path<(Uuid, Uuid)>,
@@ -81,6 +160,18 @@ pub async fn list_column_tasks(
     }
 }
 
+#[utoipa::path(
+    put,
+    path = "/tasks/{task_id}/move",
+    params(("task_id" = Uuid, Path, description = "Task ID")),
+    request_body = MoveTask,
+    responses(
+        (status = 200, description = "Task moved", body = Task),
+        (status = 404, description = "Task not found"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Columns"
+)]
 pub async fn move_task_to_column(
     State(repo): State<Arc<ColumnRepository>>,
     Path(task_id): Path<Uuid>,

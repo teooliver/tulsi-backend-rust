@@ -8,9 +8,18 @@ use axum::{
 };
 use uuid::Uuid;
 
-use crate::models::task::{CreateTask, UpdateTask};
+use crate::models::task::{CreateTask, Task, UpdateTask};
 use crate::repositories::task_repository::TaskRepository;
 
+#[utoipa::path(
+    get,
+    path = "/tasks",
+    responses(
+        (status = 200, description = "List all tasks", body = Vec<Task>),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Tasks"
+)]
 pub async fn list_tasks(
     State(repo): State<Arc<TaskRepository>>,
 ) -> Result<impl IntoResponse, StatusCode> {
@@ -20,6 +29,17 @@ pub async fn list_tasks(
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
 
+#[utoipa::path(
+    get,
+    path = "/tasks/{id}",
+    params(("id" = Uuid, Path, description = "Task ID")),
+    responses(
+        (status = 200, description = "Task found", body = Task),
+        (status = 404, description = "Task not found"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Tasks"
+)]
 pub async fn get_task(
     State(repo): State<Arc<TaskRepository>>,
     Path(id): Path<Uuid>,
@@ -31,6 +51,16 @@ pub async fn get_task(
     }
 }
 
+#[utoipa::path(
+    post,
+    path = "/tasks",
+    request_body = CreateTask,
+    responses(
+        (status = 201, description = "Task created", body = Task),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Tasks"
+)]
 pub async fn create_task(
     State(repo): State<Arc<TaskRepository>>,
     Json(input): Json<CreateTask>,
@@ -41,6 +71,18 @@ pub async fn create_task(
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
 
+#[utoipa::path(
+    put,
+    path = "/tasks/{id}",
+    params(("id" = Uuid, Path, description = "Task ID")),
+    request_body = UpdateTask,
+    responses(
+        (status = 200, description = "Task updated", body = Task),
+        (status = 404, description = "Task not found"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Tasks"
+)]
 pub async fn update_task(
     State(repo): State<Arc<TaskRepository>>,
     Path(id): Path<Uuid>,
@@ -53,6 +95,17 @@ pub async fn update_task(
     }
 }
 
+#[utoipa::path(
+    delete,
+    path = "/tasks/{id}",
+    params(("id" = Uuid, Path, description = "Task ID")),
+    responses(
+        (status = 204, description = "Task deleted"),
+        (status = 404, description = "Task not found"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Tasks"
+)]
 pub async fn delete_task(
     State(repo): State<Arc<TaskRepository>>,
     Path(id): Path<Uuid>,
