@@ -6,7 +6,7 @@ use uuid::Uuid;
 
 async fn setup() -> BoardRepository {
     let pool = common::setup_test_db().await;
-    BoardRepository::new(pool)
+    BoardRepository::new(pool, None)
 }
 
 #[tokio::test]
@@ -164,7 +164,7 @@ async fn test_delete_board_not_found() {
 #[tokio::test]
 async fn test_find_projects() {
     let pool = common::setup_test_db().await;
-    let board_repo = BoardRepository::new(pool.clone());
+    let board_repo = BoardRepository::new(pool.clone(), None);
 
     let board = board_repo
         .create(CreateBoard {

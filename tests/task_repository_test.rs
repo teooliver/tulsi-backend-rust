@@ -6,7 +6,7 @@ use uuid::Uuid;
 
 async fn setup() -> TaskRepository {
     let pool = common::setup_test_db().await;
-    TaskRepository::new(pool)
+    TaskRepository::new(pool, None)
 }
 
 #[tokio::test]

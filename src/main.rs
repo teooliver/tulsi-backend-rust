@@ -1,5 +1,6 @@
 use sqlx::postgres::PgPoolOptions;
 use tower_http::cors::CorsLayer;
+use tulsi_rust_backend::cache::RedisCache;
 use tulsi_rust_backend::observability;
 
 #[tokio::main]
@@ -38,7 +39,33 @@ async fn main() {
         .await
         .expect("Failed to run migrations");
 
-    let app = tulsi_rust_backend::build_app(pool, prometheus_handle)
+    // Connect to Redis (optional — app works without it)
+    let redis_cache = match std::env::var("REDIS_URL") {
+        Ok(redis_url) => {
+            match redis::Client::open(redis_url.as_str()) {
+                Ok(client) => match redis::aio::ConnectionManager::new(client).await {
+                    Ok(conn) => {
+                        tracing::info!("Connected to Redis at {redis_url}");
+                        Some(RedisCache::new(conn))
+                    }
+                    Err(e) => {
+                        tracing::warn!("Failed to connect to Redis: {e}. Running without cache.");
+                        None
+                    }
+                },
+                Err(e) => {
+                    tracing::warn!("Invalid REDIS_URL: {e}. Running without cache.");
+                    None
+                }
+            }
+        }
+        Err(_) => {
+            tracing::info!("REDIS_URL not set. Running without cache.");
+            None
+        }
+    };
+
+    let app = tulsi_rust_backend::build_app(pool, redis_cache, prometheus_handle)
         .layer(CorsLayer::permissive());
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")

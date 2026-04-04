@@ -1,32 +1,61 @@
 use sqlx::PgPool;
 use uuid::Uuid;
 
+use crate::cache::RedisCache;
 use crate::models::task::{CreateTask, Task, UpdateTask};
 
 pub struct TaskRepository {
     pool: PgPool,
+    cache: Option<RedisCache>,
 }
 
 impl TaskRepository {
-    pub fn new(pool: PgPool) -> Self {
-        Self { pool }
+    pub fn new(pool: PgPool, cache: Option<RedisCache>) -> Self {
+        Self { pool, cache }
     }
 
     pub async fn find_all(&self) -> Result<Vec<Task>, sqlx::Error> {
-        sqlx::query_as::<_, Task>("SELECT * FROM tasks ORDER BY created_at DESC")
-            .fetch_all(&self.pool)
-            .await
+        if let Some(cache) = &self.cache {
+            if let Some(tasks) = cache.get::<Vec<Task>>("tasks:all").await {
+                return Ok(tasks);
+            }
+        }
+
+        let tasks =
+            sqlx::query_as::<_, Task>("SELECT * FROM tasks ORDER BY created_at DESC")
+                .fetch_all(&self.pool)
+                .await?;
+
+        if let Some(cache) = &self.cache {
+            cache.set("tasks:all", &tasks).await;
+        }
+
+        Ok(tasks)
     }
 
     pub async fn find_by_id(&self, id: Uuid) -> Result<Option<Task>, sqlx::Error> {
-        sqlx::query_as::<_, Task>("SELECT * FROM tasks WHERE id = $1")
+        let key = format!("task:{id}");
+
+        if let Some(cache) = &self.cache {
+            if let Some(task) = cache.get::<Task>(&key).await {
+                return Ok(Some(task));
+            }
+        }
+
+        let task = sqlx::query_as::<_, Task>("SELECT * FROM tasks WHERE id = $1")
             .bind(id)
             .fetch_optional(&self.pool)
-            .await
+            .await?;
+
+        if let (Some(cache), Some(task)) = (&self.cache, &task) {
+            cache.set(&key, task).await;
+        }
+
+        Ok(task)
     }
 
     pub async fn create(&self, input: CreateTask) -> Result<Task, sqlx::Error> {
-        sqlx::query_as::<_, Task>(
+        let task = sqlx::query_as::<_, Task>(
             "INSERT INTO tasks (title, description, project_id, assigned_to, column_id) VALUES ($1, $2, $3, $4, $5) RETURNING *",
         )
         .bind(&input.title)
@@ -35,11 +64,17 @@ impl TaskRepository {
         .bind(input.assigned_to)
         .bind(input.column_id)
         .fetch_one(&self.pool)
-        .await
+        .await?;
+
+        if let Some(cache) = &self.cache {
+            cache.delete(&["tasks:all"]).await;
+        }
+
+        Ok(task)
     }
 
     pub async fn update(&self, id: Uuid, input: UpdateTask) -> Result<Option<Task>, sqlx::Error> {
-        sqlx::query_as::<_, Task>(
+        let task = sqlx::query_as::<_, Task>(
             "UPDATE tasks SET
                 title = COALESCE($2, title),
                 description = COALESCE($3, description),
@@ -60,7 +95,14 @@ impl TaskRepository {
         .bind(input.column_id.is_some())
         .bind(input.column_id)
         .fetch_optional(&self.pool)
-        .await
+        .await?;
+
+        if let Some(cache) = &self.cache {
+            let key = format!("task:{id}");
+            cache.delete(&[&key, "tasks:all"]).await;
+        }
+
+        Ok(task)
     }
 
     pub async fn delete(&self, id: Uuid) -> Result<bool, sqlx::Error> {
@@ -68,6 +110,12 @@ impl TaskRepository {
             .bind(id)
             .execute(&self.pool)
             .await?;
+
+        if let Some(cache) = &self.cache {
+            let key = format!("task:{id}");
+            cache.delete(&[&key, "tasks:all"]).await;
+        }
+
         Ok(result.rows_affected() > 0)
     }
 }

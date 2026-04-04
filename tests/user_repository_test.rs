@@ -8,7 +8,7 @@ use uuid::Uuid;
 
 async fn setup() -> UserRepository {
     let pool = common::setup_test_db().await;
-    UserRepository::new(pool)
+    UserRepository::new(pool, None)
 }
 
 #[tokio::test]
@@ -176,8 +176,8 @@ async fn test_delete_user_not_found() {
 #[tokio::test]
 async fn test_find_tasks() {
     let pool = common::setup_test_db().await;
-    let user_repo = UserRepository::new(pool.clone());
-    let task_repo = TaskRepository::new(pool);
+    let user_repo = UserRepository::new(pool.clone(), None);
+    let task_repo = TaskRepository::new(pool, None);
 
     let user = user_repo
         .create(CreateUser {

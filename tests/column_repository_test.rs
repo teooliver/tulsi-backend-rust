@@ -10,8 +10,8 @@ use uuid::Uuid;
 
 async fn setup() -> (ColumnRepository, BoardRepository, sqlx::PgPool) {
     let pool = common::setup_test_db().await;
-    let column_repo = ColumnRepository::new(pool.clone());
-    let board_repo = BoardRepository::new(pool.clone());
+    let column_repo = ColumnRepository::new(pool.clone(), None);
+    let board_repo = BoardRepository::new(pool.clone(), None);
     (column_repo, board_repo, pool)
 }
 
@@ -240,7 +240,7 @@ async fn test_delete_column_not_found() {
 #[tokio::test]
 async fn test_find_tasks_in_column() {
     let (repo, board_repo, pool) = setup().await;
-    let task_repo = TaskRepository::new(pool);
+    let task_repo = TaskRepository::new(pool, None);
     let board_id = create_test_board(&board_repo).await;
 
     let column = repo
@@ -274,7 +274,7 @@ async fn test_find_tasks_in_column() {
 #[tokio::test]
 async fn test_move_task_to_column() {
     let (repo, board_repo, pool) = setup().await;
-    let task_repo = TaskRepository::new(pool);
+    let task_repo = TaskRepository::new(pool, None);
     let board_id = create_test_board(&board_repo).await;
 
     let col_todo = repo

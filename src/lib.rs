@@ -1,3 +1,4 @@
+pub mod cache;
 pub mod handlers;
 pub mod models;
 pub mod observability;
@@ -13,6 +14,7 @@ use tower_http::trace::TraceLayer;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
+use cache::RedisCache;
 use observability::{health_handler, metrics_handler};
 use repositories::board_repository::BoardRepository;
 use repositories::column_repository::ColumnRepository;
@@ -92,12 +94,12 @@ use routes::user_routes::user_routes;
 )]
 struct ApiDoc;
 
-pub fn build_app(pool: PgPool, prometheus_handle: PrometheusHandle) -> Router {
-    let task_repo = Arc::new(TaskRepository::new(pool.clone()));
-    let project_repo = Arc::new(ProjectRepository::new(pool.clone()));
-    let board_repo = Arc::new(BoardRepository::new(pool.clone()));
-    let column_repo = Arc::new(ColumnRepository::new(pool.clone()));
-    let user_repo = Arc::new(UserRepository::new(pool.clone()));
+pub fn build_app(pool: PgPool, cache: Option<RedisCache>, prometheus_handle: PrometheusHandle) -> Router {
+    let task_repo = Arc::new(TaskRepository::new(pool.clone(), cache.clone()));
+    let project_repo = Arc::new(ProjectRepository::new(pool.clone(), cache.clone()));
+    let board_repo = Arc::new(BoardRepository::new(pool.clone(), cache.clone()));
+    let column_repo = Arc::new(ColumnRepository::new(pool.clone(), cache.clone()));
+    let user_repo = Arc::new(UserRepository::new(pool.clone(), cache));
 
     task_routes(task_repo)
         .merge(project_routes(project_repo))

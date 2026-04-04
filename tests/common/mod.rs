@@ -12,7 +12,7 @@ pub async fn setup_test_app() -> Router {
     let prometheus_handle = PrometheusBuilder::new()
         .install_recorder()
         .expect("failed to install Prometheus recorder");
-    tulsi_rust_backend::build_app(pool, prometheus_handle)
+    tulsi_rust_backend::build_app(pool, None, prometheus_handle)
 }
 
 pub async fn setup_test_db() -> PgPool {
