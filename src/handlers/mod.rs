@@ -1,3 +1,4 @@
+pub mod auth_handler;
 pub mod board_handler;
 pub mod column_handler;
 pub mod project_handler;

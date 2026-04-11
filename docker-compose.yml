@@ -41,6 +41,7 @@ services:
     environment:
       DATABASE_URL: postgres://db_user_test:12345@db:5432/tulsi_test_db
       REDIS_URL: redis://redis:6379
+      JWT_SECRET: change-me-in-production
     ports:
       - "3000:3000"
     depends_on:

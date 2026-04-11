@@ -184,6 +184,7 @@ async fn test_find_tasks() {
                 title: title.to_string(),
                 description: None,
                 project_id: Some(project.id),
+                author: None,
                 assigned_to: None,
                 column_id: None,
             })

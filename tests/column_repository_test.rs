@@ -260,6 +260,7 @@ async fn test_find_tasks_in_column() {
                 title: title.to_string(),
                 description: None,
                 project_id: None,
+                author: None,
                 assigned_to: None,
                 column_id: Some(column.id),
             })
@@ -304,6 +305,7 @@ async fn test_move_task_to_column() {
             title: "Move me".to_string(),
             description: None,
             project_id: None,
+            author: None,
             assigned_to: None,
             column_id: Some(col_todo.id),
         })

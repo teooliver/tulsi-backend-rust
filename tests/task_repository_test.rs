@@ -17,6 +17,7 @@ async fn test_create_task() {
         title: "Test task".to_string(),
         description: Some("A description".to_string()),
         project_id: None,
+        author: None,
         assigned_to: None,
         column_id: None,
     };
@@ -38,6 +39,7 @@ async fn test_create_task_with_default_description() {
         title: "No desc task".to_string(),
         description: None,
         project_id: None,
+        author: None,
         assigned_to: None,
         column_id: None,
     };
@@ -62,6 +64,7 @@ async fn test_find_all() {
             title: title.to_string(),
             description: None,
             project_id: None,
+            author: None,
             assigned_to: None,
             column_id: None,
         })
@@ -85,6 +88,7 @@ async fn test_find_by_id() {
             title: "Find me".to_string(),
             description: None,
             project_id: None,
+            author: None,
             assigned_to: None,
             column_id: None,
         })
@@ -113,6 +117,7 @@ async fn test_update_task() {
             title: "Original".to_string(),
             description: Some("Original desc".to_string()),
             project_id: None,
+            author: None,
             assigned_to: None,
             column_id: None,
         })
@@ -126,6 +131,7 @@ async fn test_update_task() {
                 title: Some("Updated".to_string()),
                 description: None,
                 project_id: None,
+                author: None,
                 assigned_to: None,
                 column_id: None,
             },
@@ -150,6 +156,7 @@ async fn test_update_task_not_found() {
                 title: Some("Nope".to_string()),
                 description: None,
                 project_id: None,
+                author: None,
                 assigned_to: None,
                 column_id: None,
             },
@@ -169,6 +176,7 @@ async fn test_delete_task() {
             title: "Delete me".to_string(),
             description: None,
             project_id: None,
+            author: None,
             assigned_to: None,
             column_id: None,
         })
@@ -200,6 +208,7 @@ async fn test_update_partial_fields() {
             title: "Original title".to_string(),
             description: Some("Original desc".to_string()),
             project_id: None,
+            author: None,
             assigned_to: None,
             column_id: None,
         })
@@ -214,6 +223,7 @@ async fn test_update_partial_fields() {
                 title: None,
                 description: Some("New desc".to_string()),
                 project_id: None,
+                author: None,
                 assigned_to: None,
                 column_id: None,
             },

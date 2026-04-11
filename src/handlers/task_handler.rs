@@ -8,6 +8,7 @@ use axum::{
 };
 use uuid::Uuid;
 
+use crate::auth::AuthUser;
 use crate::models::task::{CreateTask, Task, UpdateTask};
 use crate::repositories::task_repository::TaskRepository;
 
@@ -62,9 +63,11 @@ pub async fn get_task(
     tag = "Tasks"
 )]
 pub async fn create_task(
+    auth_user: AuthUser,
     State(repo): State<Arc<TaskRepository>>,
-    Json(input): Json<CreateTask>,
+    Json(mut input): Json<CreateTask>,
 ) -> Result<impl IntoResponse, StatusCode> {
+    input.author = Some(auth_user.user_id);
     repo.create(input)
         .await
         .map(|task| (StatusCode::CREATED, Json(task)))

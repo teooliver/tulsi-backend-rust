@@ -57,10 +57,39 @@ impl UserRepository {
 
     pub async fn create(&self, input: CreateUser) -> Result<User, sqlx::Error> {
         let user = sqlx::query_as::<_, User>(
-            "INSERT INTO users (name, email) VALUES ($1, $2) RETURNING *",
+            "INSERT INTO users (name, email, password_hash) VALUES ($1, $2, '') RETURNING *",
         )
         .bind(&input.name)
         .bind(&input.email)
+        .fetch_one(&self.pool)
+        .await?;
+
+        if let Some(cache) = &self.cache {
+            cache.delete(&["users:all"]).await;
+        }
+
+        Ok(user)
+    }
+
+    pub async fn find_by_email(&self, email: &str) -> Result<Option<User>, sqlx::Error> {
+        sqlx::query_as::<_, User>("SELECT * FROM users WHERE email = $1")
+            .bind(email)
+            .fetch_optional(&self.pool)
+            .await
+    }
+
+    pub async fn create_with_password(
+        &self,
+        name: &str,
+        email: &str,
+        password_hash: &str,
+    ) -> Result<User, sqlx::Error> {
+        let user = sqlx::query_as::<_, User>(
+            "INSERT INTO users (name, email, password_hash) VALUES ($1, $2, $3) RETURNING *",
+        )
+        .bind(name)
+        .bind(email)
+        .bind(password_hash)
         .fetch_one(&self.pool)
         .await?;
 
