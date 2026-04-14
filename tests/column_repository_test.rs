@@ -314,7 +314,8 @@ async fn test_move_task_to_column() {
 
     assert_eq!(task.column_id, Some(col_todo.id));
 
-    let moved = repo.move_task(task.id, col_done.id).await.unwrap().unwrap();
+    let (old_column_id, moved) = repo.move_task(task.id, col_done.id).await.unwrap().unwrap();
+    assert_eq!(old_column_id, Some(col_todo.id));
     assert_eq!(moved.column_id, Some(col_done.id));
     assert!(moved.updated_at > task.updated_at);
 

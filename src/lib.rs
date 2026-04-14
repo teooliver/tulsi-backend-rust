@@ -21,6 +21,7 @@ use observability::{health_handler, metrics_handler};
 use repositories::board_repository::BoardRepository;
 use repositories::column_repository::ColumnRepository;
 use repositories::project_repository::ProjectRepository;
+use repositories::task_history_repository::TaskHistoryRepository;
 use repositories::task_repository::TaskRepository;
 use repositories::user_repository::UserRepository;
 use routes::auth_routes::auth_routes;
@@ -84,6 +85,7 @@ impl utoipa::Modify for SecurityAddon {
         handlers::column_handler::delete_column,
         handlers::column_handler::list_column_tasks,
         handlers::column_handler::move_task_to_column,
+        handlers::task_history_handler::get_task_history,
     ),
     components(schemas(
         models::auth::RegisterRequest,
@@ -105,6 +107,8 @@ impl utoipa::Modify for SecurityAddon {
         models::column::CreateColumn,
         models::column::UpdateColumn,
         models::column::MoveTask,
+        models::task_history::TaskHistory,
+        models::task_history::TaskEventType,
     )),
     tags(
         (name = "Auth", description = "Authentication"),
@@ -113,6 +117,7 @@ impl utoipa::Modify for SecurityAddon {
         (name = "Boards", description = "Board management"),
         (name = "Tasks", description = "Task management"),
         (name = "Columns", description = "Column management"),
+        (name = "Task History", description = "Task change history"),
     ),
     modifiers(&SecurityAddon),
     info(
@@ -131,6 +136,7 @@ pub fn build_app(pool: PgPool, cache: Option<RedisCache>, prometheus_handle: Pro
     );
 
     let task_repo = Arc::new(TaskRepository::new(pool.clone(), cache.clone()));
+    let task_history_repo = Arc::new(TaskHistoryRepository::new(pool.clone()));
     let project_repo = Arc::new(ProjectRepository::new(pool.clone(), cache.clone()));
     let board_repo = Arc::new(BoardRepository::new(pool.clone(), cache.clone()));
     let column_repo = Arc::new(ColumnRepository::new(pool.clone(), cache.clone()));
@@ -148,7 +154,8 @@ pub fn build_app(pool: PgPool, cache: Option<RedisCache>, prometheus_handle: Pro
         .merge(board_routes(board_repo))
         .merge(column_routes(column_repo))
         .merge(user_routes(user_repo))
-        .layer(middleware::from_fn(require_auth));
+        .layer(middleware::from_fn(require_auth))
+        .layer(Extension(task_history_repo));
 
     let all_routes = Router::new()
         .merge(public_routes)

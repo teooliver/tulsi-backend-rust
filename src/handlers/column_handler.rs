@@ -1,16 +1,19 @@
 use std::sync::Arc;
 
 use axum::{
-    Json,
+    Extension, Json,
     extract::{Path, State},
     http::StatusCode,
     response::IntoResponse,
 };
 use uuid::Uuid;
 
+use crate::auth::AuthUser;
 use crate::models::column::{Column, CreateColumn, MoveTask, UpdateColumn};
 use crate::models::task::Task;
+use crate::models::task_history::TaskEventType;
 use crate::repositories::column_repository::ColumnRepository;
+use crate::repositories::task_history_repository::TaskHistoryRepository;
 
 #[utoipa::path(
     get,
@@ -173,12 +176,30 @@ pub async fn list_column_tasks(
     tag = "Columns"
 )]
 pub async fn move_task_to_column(
+    auth_user: AuthUser,
     State(repo): State<Arc<ColumnRepository>>,
+    Extension(history_repo): Extension<Arc<TaskHistoryRepository>>,
     Path(task_id): Path<Uuid>,
     Json(input): Json<MoveTask>,
 ) -> Result<impl IntoResponse, StatusCode> {
     match repo.move_task(task_id, input.column_id).await {
-        Ok(Some(task)) => Ok(Json(task)),
+        Ok(Some((old_column_id, task))) => {
+            if old_column_id != task.column_id {
+                if let Err(e) = history_repo
+                    .record(
+                        task_id,
+                        auth_user.user_id,
+                        TaskEventType::ColumnChanged,
+                        old_column_id.map(|u| u.to_string()),
+                        task.column_id.map(|u| u.to_string()),
+                    )
+                    .await
+                {
+                    tracing::warn!("Failed to record column change history: {e}");
+                }
+            }
+            Ok(Json(task))
+        }
         Ok(None) => Err(StatusCode::NOT_FOUND),
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
     }

@@ -163,16 +163,19 @@ impl ColumnRepository {
         Ok(tasks)
     }
 
+    /// Moves a task to a new column. Returns `(old_column_id, updated_task)`.
     pub async fn move_task(
         &self,
         task_id: Uuid,
         column_id: Uuid,
-    ) -> Result<Option<Task>, sqlx::Error> {
-        // Get the task's current column for cache invalidation
+    ) -> Result<Option<(Option<Uuid>, Task)>, sqlx::Error> {
+        // Get the task's current column for cache invalidation and history
         let old_task = sqlx::query_as::<_, Task>("SELECT * FROM tasks WHERE id = $1")
             .bind(task_id)
             .fetch_optional(&self.pool)
             .await?;
+
+        let old_column_id = old_task.as_ref().and_then(|t| t.column_id);
 
         let task = sqlx::query_as::<_, Task>(
             "UPDATE tasks SET column_id = $2, updated_at = NOW() WHERE id = $1 RETURNING *",
@@ -186,15 +189,13 @@ impl ColumnRepository {
             let task_key = format!("task:{task_id}");
             let new_col_key = format!("column:{column_id}:tasks");
             let mut keys_to_delete = vec![task_key, new_col_key, "tasks:all".to_string()];
-            if let Some(old) = old_task {
-                if let Some(old_col) = old.column_id {
-                    keys_to_delete.push(format!("column:{old_col}:tasks"));
-                }
+            if let Some(old_col) = old_column_id {
+                keys_to_delete.push(format!("column:{old_col}:tasks"));
             }
             let key_refs: Vec<&str> = keys_to_delete.iter().map(|s| s.as_str()).collect();
             cache.delete(&key_refs).await;
         }
 
-        Ok(task)
+        Ok(task.map(|t| (old_column_id, t)))
     }
 }

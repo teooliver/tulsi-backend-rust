@@ -5,7 +5,7 @@ use axum::{
     routing::{get, post},
 };
 
-use crate::handlers::task_handler;
+use crate::handlers::{task_handler, task_history_handler};
 use crate::repositories::task_repository::TaskRepository;
 
 pub fn task_routes(repo: Arc<TaskRepository>) -> Router {
@@ -17,6 +17,10 @@ pub fn task_routes(repo: Arc<TaskRepository>) -> Router {
             get(task_handler::get_task)
                 .put(task_handler::update_task)
                 .delete(task_handler::delete_task),
+        )
+        .route(
+            "/tasks/{id}/history",
+            get(task_history_handler::get_task_history),
         )
         .with_state(repo)
 }
