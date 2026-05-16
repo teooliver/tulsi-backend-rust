@@ -5,8 +5,7 @@ use axum_test::TestServer;
 use serde_json::json;
 
 async fn setup() -> TestServer {
-    let app = common::setup_test_app().await;
-    TestServer::new(app)
+    common::authed_server().await
 }
 
 #[tokio::test]

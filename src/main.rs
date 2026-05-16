@@ -80,10 +80,12 @@ async fn main() {
     let app = tulsi_rust_backend::build_app(pool, redis_cache, prometheus_handle)
         .layer(CorsLayer::permissive());
 
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
+    let port = std::env::var("PORT").unwrap_or_else(|_| "8080".to_string());
+    let addr = format!("0.0.0.0:{port}");
+    let listener = tokio::net::TcpListener::bind(&addr)
         .await
-        .expect("Failed to bind to port 3000");
+        .unwrap_or_else(|_| panic!("Failed to bind to {addr}"));
 
-    tracing::info!("Server running on http://0.0.0.0:3000");
+    tracing::info!("Server running on http://{addr}");
     axum::serve(listener, app).await.unwrap();
 }

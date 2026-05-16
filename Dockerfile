@@ -36,6 +36,6 @@ COPY --from=builder /app/target/release/tulsi-rust-backend /usr/local/bin/tulsi-
 # Removing this for now, the value will be injected at runtime by K3s.
 # ENV DATABASE_URL=postgres://db_user_test:12345@db:5432/tulsi_test_db
 
-EXPOSE 3000
+EXPOSE 8080
 
 CMD ["tulsi-rust-backend"]
