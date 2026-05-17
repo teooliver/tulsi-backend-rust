@@ -29,3 +29,6 @@ curl -X POST http://localhost:3000/tasks \
   -H "Content-Type: application/json" \
   -d '{"title": "My new task"}'
 ```
+
+# Run on any port:
+PORT=9090 cargo run

@@ -86,10 +86,14 @@ pub async fn setup_test_db() -> PgPool {
         .execute(&pool)
         .await
         .expect("Failed to run migration 009");
+    sqlx::raw_sql(include_str!("../../migrations/010_create_labels.sql"))
+        .execute(&pool)
+        .await
+        .expect("Failed to run migration 010");
 
-    // Clean data before each test (CASCADE handles dependent tables like plans, task_history)
+    // Clean data before each test (CASCADE handles dependent tables like plans, task_history, task_labels)
     sqlx::raw_sql(
-        "TRUNCATE tasks, columns, projects, boards, users, plans RESTART IDENTITY CASCADE",
+        "TRUNCATE tasks, columns, projects, boards, users, plans, labels RESTART IDENTITY CASCADE",
     )
     .execute(&pool)
     .await

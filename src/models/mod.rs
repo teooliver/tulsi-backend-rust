@@ -1,6 +1,7 @@
 pub mod auth;
 pub mod board;
 pub mod column;
+pub mod label;
 pub mod plan;
 pub mod project;
 pub mod task;

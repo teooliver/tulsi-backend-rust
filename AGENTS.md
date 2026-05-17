@@ -51,10 +51,13 @@ docker-compose.yml                # Postgres container
 |--------|-------|------------|
 | **Project** | `projects` | `id` (UUID), `name`, `description`, `created_at`, `updated_at` |
 | **Task** | `tasks` | `id` (UUID), `title`, `description`, `project_id` (nullable FK → `projects`), `created_at`, `updated_at` |
+| **Label** | `labels` | `id` (UUID), `name` (UNIQUE), `color` (nullable), `created_at`, `updated_at` |
+| **TaskLabel** | `task_labels` | `task_id` (FK → `tasks`), `label_id` (FK → `labels`) — many-to-many join |
 
 - A **Project** can have many **Tasks** (one-to-many).
 - A **Task** optionally belongs to a **Project** (`project_id` is nullable).
 - Deleting a project sets `project_id` to `NULL` on linked tasks (`ON DELETE SET NULL`).
+- A **Task** can have many **Labels** and a **Label** can be applied to many tasks via `task_labels` (many-to-many). Deleting a task or label cascades to the join rows.
 
 ### API Endpoints
 
@@ -71,6 +74,14 @@ docker-compose.yml                # Postgres container
 | PUT | `/projects/{id}` | Update a project |
 | DELETE | `/projects/{id}` | Delete a project |
 | GET | `/projects/{id}/tasks` | List tasks for a project |
+| GET | `/labels` | List all labels |
+| POST | `/labels` | Create a label |
+| GET | `/labels/{id}` | Get a label |
+| PUT | `/labels/{id}` | Update a label |
+| DELETE | `/labels/{id}` | Delete a label |
+| GET | `/tasks/{task_id}/labels` | List labels attached to a task |
+| POST | `/tasks/{task_id}/labels/{label_id}` | Attach a label to a task |
+| DELETE | `/tasks/{task_id}/labels/{label_id}` | Detach a label from a task |
 
 ### Layer Responsibilities
 

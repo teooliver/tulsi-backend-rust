@@ -50,6 +50,14 @@ async fn main() {
         .execute(&pool)
         .await
         .expect("Failed to run migrations");
+    sqlx::raw_sql(include_str!("../migrations/009_create_plans.sql"))
+        .execute(&pool)
+        .await
+        .expect("Failed to run migrations");
+    sqlx::raw_sql(include_str!("../migrations/010_create_labels.sql"))
+        .execute(&pool)
+        .await
+        .expect("Failed to run migrations");
 
     // Connect to Redis (optional — app works without it)
     let redis_cache = match std::env::var("REDIS_URL") {

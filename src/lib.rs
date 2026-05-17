@@ -20,6 +20,7 @@ use cache::RedisCache;
 use observability::{health_handler, metrics_handler};
 use repositories::board_repository::BoardRepository;
 use repositories::column_repository::ColumnRepository;
+use repositories::label_repository::LabelRepository;
 use repositories::plan_repository::PlanRepository;
 use repositories::project_repository::ProjectRepository;
 use repositories::task_history_repository::TaskHistoryRepository;
@@ -28,6 +29,7 @@ use repositories::user_repository::UserRepository;
 use routes::auth_routes::auth_routes;
 use routes::board_routes::board_routes;
 use routes::column_routes::column_routes;
+use routes::label_routes::label_routes;
 use routes::plan_routes::plan_routes;
 use routes::project_routes::project_routes;
 use routes::task_routes::task_routes;
@@ -93,6 +95,14 @@ impl utoipa::Modify for SecurityAddon {
         handlers::column_handler::delete_column,
         handlers::column_handler::list_column_tasks,
         handlers::column_handler::move_task_to_column,
+        handlers::label_handler::list_labels,
+        handlers::label_handler::get_label,
+        handlers::label_handler::create_label,
+        handlers::label_handler::update_label,
+        handlers::label_handler::delete_label,
+        handlers::label_handler::list_task_labels,
+        handlers::label_handler::attach_label_to_task,
+        handlers::label_handler::detach_label_from_task,
         handlers::task_history_handler::get_task_history,
     ),
     components(schemas(
@@ -119,6 +129,9 @@ impl utoipa::Modify for SecurityAddon {
         models::column::CreateColumn,
         models::column::UpdateColumn,
         models::column::MoveTask,
+        models::label::Label,
+        models::label::CreateLabel,
+        models::label::UpdateLabel,
         models::task_history::TaskHistory,
         models::task_history::TaskEventType,
     )),
@@ -131,6 +144,7 @@ impl utoipa::Modify for SecurityAddon {
         (name = "Columns", description = "Column management"),
         (name = "Task History", description = "Task change history"),
         (name = "Plans", description = "Saved task filter configurations"),
+        (name = "Labels", description = "Label management and task associations"),
     ),
     modifiers(&SecurityAddon),
     info(
@@ -154,6 +168,7 @@ pub fn build_app(pool: PgPool, cache: Option<RedisCache>, prometheus_handle: Pro
     let board_repo = Arc::new(BoardRepository::new(pool.clone(), cache.clone()));
     let column_repo = Arc::new(ColumnRepository::new(pool.clone(), cache.clone()));
     let plan_repo = Arc::new(PlanRepository::new(pool.clone(), cache.clone()));
+    let label_repo = Arc::new(LabelRepository::new(pool.clone(), cache.clone()));
     let user_repo = Arc::new(UserRepository::new(pool.clone(), cache));
 
     let public_routes = Router::new()
@@ -168,6 +183,7 @@ pub fn build_app(pool: PgPool, cache: Option<RedisCache>, prometheus_handle: Pro
         .merge(board_routes(board_repo))
         .merge(column_routes(column_repo))
         .merge(plan_routes(plan_repo))
+        .merge(label_routes(label_repo))
         .merge(user_routes(user_repo))
         .layer(middleware::from_fn(require_auth))
         .layer(Extension(task_history_repo));

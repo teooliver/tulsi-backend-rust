@@ -1,5 +1,6 @@
 pub mod board_repository;
 pub mod column_repository;
+pub mod label_repository;
 pub mod plan_repository;
 pub mod project_repository;
 pub mod task_history_repository;
