@@ -39,57 +39,10 @@ pub async fn setup_test_db() -> PgPool {
         .await
         .expect("Failed to acquire test database lock");
 
-    // Run migrations (all use IF NOT EXISTS except tasks table)
-    sqlx::raw_sql(
-        "CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";
-         CREATE TABLE IF NOT EXISTS tasks (
-             id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-             title VARCHAR(255) NOT NULL,
-             description TEXT NOT NULL DEFAULT '',
-             created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-             updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-         );",
-    )
-    .execute(&pool)
-    .await
-    .expect("Failed to run migration 001");
-
-    sqlx::raw_sql(include_str!("../../migrations/002_create_projects.sql"))
-        .execute(&pool)
+    sqlx::migrate!("./migrations")
+        .run(&pool)
         .await
-        .expect("Failed to run migration 002");
-    sqlx::raw_sql(include_str!("../../migrations/003_create_boards.sql"))
-        .execute(&pool)
-        .await
-        .expect("Failed to run migration 003");
-    sqlx::raw_sql(include_str!("../../migrations/004_create_users.sql"))
-        .execute(&pool)
-        .await
-        .expect("Failed to run migration 004");
-    sqlx::raw_sql(include_str!("../../migrations/005_create_columns.sql"))
-        .execute(&pool)
-        .await
-        .expect("Failed to run migration 005");
-    sqlx::raw_sql(include_str!("../../migrations/006_add_author_to_tasks.sql"))
-        .execute(&pool)
-        .await
-        .ok(); // column may already exist; ignore error
-    sqlx::raw_sql(include_str!("../../migrations/007_add_password_hash_to_users.sql"))
-        .execute(&pool)
-        .await
-        .expect("Failed to run migration 007");
-    sqlx::raw_sql(include_str!("../../migrations/008_create_task_history.sql"))
-        .execute(&pool)
-        .await
-        .expect("Failed to run migration 008");
-    sqlx::raw_sql(include_str!("../../migrations/009_create_plans.sql"))
-        .execute(&pool)
-        .await
-        .expect("Failed to run migration 009");
-    sqlx::raw_sql(include_str!("../../migrations/010_create_labels.sql"))
-        .execute(&pool)
-        .await
-        .expect("Failed to run migration 010");
+        .expect("Failed to run migrations");
 
     // Clean data before each test (CASCADE handles dependent tables like plans, task_history, task_labels)
     sqlx::raw_sql(

@@ -17,45 +17,8 @@ async fn main() {
         .await
         .expect("Failed to connect to Postgres");
 
-    // Run migrations
-    sqlx::raw_sql(include_str!("../migrations/001_create_tasks.sql"))
-        .execute(&pool)
-        .await
-        .expect("Failed to run migrations");
-    sqlx::raw_sql(include_str!("../migrations/002_create_projects.sql"))
-        .execute(&pool)
-        .await
-        .expect("Failed to run migrations");
-    sqlx::raw_sql(include_str!("../migrations/003_create_boards.sql"))
-        .execute(&pool)
-        .await
-        .expect("Failed to run migrations");
-    sqlx::raw_sql(include_str!("../migrations/004_create_users.sql"))
-        .execute(&pool)
-        .await
-        .expect("Failed to run migrations");
-    sqlx::raw_sql(include_str!("../migrations/005_create_columns.sql"))
-        .execute(&pool)
-        .await
-        .expect("Failed to run migrations");
-    sqlx::raw_sql(include_str!("../migrations/006_add_author_to_tasks.sql"))
-        .execute(&pool)
-        .await
-        .expect("Failed to run migrations");
-    sqlx::raw_sql(include_str!("../migrations/007_add_password_hash_to_users.sql"))
-        .execute(&pool)
-        .await
-        .expect("Failed to run migrations");
-    sqlx::raw_sql(include_str!("../migrations/008_create_task_history.sql"))
-        .execute(&pool)
-        .await
-        .expect("Failed to run migrations");
-    sqlx::raw_sql(include_str!("../migrations/009_create_plans.sql"))
-        .execute(&pool)
-        .await
-        .expect("Failed to run migrations");
-    sqlx::raw_sql(include_str!("../migrations/010_create_labels.sql"))
-        .execute(&pool)
+    sqlx::migrate!("./migrations")
+        .run(&pool)
         .await
         .expect("Failed to run migrations");
 
