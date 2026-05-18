@@ -11,6 +11,7 @@ pub struct PlanFilters {
     pub author: Option<Vec<Uuid>>,
     pub project_id: Option<Vec<Uuid>>,
     pub column_id: Option<Vec<Uuid>>,
+    pub label_id: Option<Vec<Uuid>>,
     pub created_after: Option<DateTime<Utc>>,
     pub created_before: Option<DateTime<Utc>>,
 }

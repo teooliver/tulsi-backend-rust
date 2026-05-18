@@ -189,6 +189,14 @@ impl PlanRepository {
             }
         }
 
+        if let Some(ids) = &filters.label_id {
+            if !ids.is_empty() {
+                qb.push(" AND id IN (SELECT task_id FROM task_labels WHERE label_id = ANY(");
+                qb.push_bind(ids.as_slice());
+                qb.push("))");
+            }
+        }
+
         if let Some(after) = filters.created_after {
             qb.push(" AND created_at >= ");
             qb.push_bind(after);
