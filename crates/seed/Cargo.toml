@@ -1,7 +1,7 @@
 [package]
 name = "seed"
-version = "0.1.0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
 
 [dependencies]
 tokio = { workspace = true }
@@ -9,3 +9,6 @@ sqlx = { workspace = true }
 uuid = { workspace = true }
 fake = { workspace = true }
 rand = { workspace = true }
+
+[lints]
+workspace = true
