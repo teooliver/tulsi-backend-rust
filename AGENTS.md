@@ -23,25 +23,34 @@ Tulsi is a task management backend built with **Rust**, **Axum**, and **PostgreS
 
 ## Architecture
 
-This project strictly follows the **Repository Pattern**. All layers are separated:
+This project strictly follows the **Repository Pattern**, split across a Cargo
+**workspace** of focused crates so the layers are enforced by the crate graph
+(and so editing a handler doesn't recompile the heavy OpenTelemetry stack):
 
 ```
-src/
-├── main.rs                          # Entrypoint: DB connection, migrations, Redis, server startup
-├── lib.rs                           # build_app(): wires repositories, routes, middleware, OpenAPI
-├── auth.rs                          # JWT issuance/verification, require_auth middleware
-├── cache.rs                         # RedisCache wrapper used by repositories
-├── observability.rs                 # tracing + OTLP init, /health and /metrics handlers
-├── models/                          # Domain types and DTOs (auth, user, project, board, column,
-│                                    # task, task_history, plan, label)
-├── repositories/                    # One *_repository.rs per resource — all SQL lives here
-├── handlers/                        # Axum handler functions per resource
-└── routes/                          # Router builders per resource
+Cargo.toml                           # Virtual workspace manifest + [workspace.dependencies]
 migrations/                          # Numbered SQL files (001_..010_); applied via sqlx::migrate!
-crates/tulsi-seed/                   # Workspace member for seed data tooling
-tests/                               # Integration tests; tests/common/mod.rs has shared setup
+crates/
+├── models/        src/lib.rs + *.rs # Domain types and DTOs (auth, user, project, board, column,
+│                                    # task, task_history, plan, label)
+├── auth/          src/lib.rs        # JWT issuance/verification, require_auth middleware, AuthUser
+├── cache/         src/lib.rs        # RedisCache wrapper used by repositories
+├── observability/ src/lib.rs        # tracing + OTLP init, /health and /metrics handlers
+├── repositories/  src/lib.rs + *.rs # One *_repository.rs per resource — all SQL lives here
+│                                    #   (deps: models, cache)
+├── api/           src/lib.rs        # build_app() + OpenAPI doc; handlers/ and routes/ submodules
+│                  src/handlers/     # Axum handler functions per resource
+│                  src/routes/       # Router builders per resource
+│                  tests/            # Integration tests; tests/common/mod.rs has shared setup
+│                                    #   (deps: models, auth, cache, observability, repositories)
+├── server/        src/main.rs       # Binary: DB connection, migrations, Redis, server startup
+└── seed/          src/main.rs       # Standalone seed-data binary (cargo run -p seed)
 docker-compose.yml                   # Postgres (dev + test), Redis, app
 ```
+
+Dependency direction is acyclic: `models`/`auth`/`cache`/`observability` are
+leaf crates; `repositories` builds on `models`+`cache`; `api` builds on all of
+them; `server` is a thin binary over `api`.
 
 ### Entities & Relationships
 
@@ -101,24 +110,24 @@ See `/swagger-ui` for the authoritative, generated spec.
 
 ### Layer Responsibilities
 
-| Layer | Directory | Responsibility |
-|-------|-----------|---------------|
-| **Models** | `src/models/` | Domain types, DTOs. Derive `Serialize`, `Deserialize`, `FromRow`, and `ToSchema` (utoipa) as needed. |
-| **Repositories** | `src/repositories/` | All database queries live here. Each repository takes a `PgPool` (and an optional `RedisCache`) and exposes async methods returning `Result<T, sqlx::Error>`. |
-| **Handlers** | `src/handlers/` | Axum handler functions. Extract state (`Arc<Repository>`), path params, and JSON bodies. Map repo results to HTTP responses. Annotate with `#[utoipa::path(...)]` for OpenAPI. |
-| **Routes** | `src/routes/` | Build `axum::Router` with route paths, methods, and shared state. Wired into `build_app()` in `lib.rs`. |
-| **Auth** | `src/auth.rs` | `require_auth` middleware verifies the JWT and injects `AuthUser` into request extensions. |
-| **Cache** | `src/cache.rs` | `RedisCache` is passed to repositories; cache misses fall back to the DB transparently. |
+| Layer | Location | Responsibility |
+|-------|----------|---------------|
+| **Models** | `crates/models/` | Domain types, DTOs. Derive `Serialize`, `Deserialize`, `FromRow`, and `ToSchema` (utoipa) as needed. |
+| **Repositories** | `crates/repositories/` | All database queries live here. Each repository takes a `PgPool` (and an optional `RedisCache`) and exposes async methods returning `Result<T, sqlx::Error>`. |
+| **Handlers** | `crates/api/src/handlers/` | Axum handler functions. Extract state (`Arc<Repository>`), path params, and JSON bodies. Map repo results to HTTP responses. Annotate with `#[utoipa::path(...)]` for OpenAPI. |
+| **Routes** | `crates/api/src/routes/` | Build `axum::Router` with route paths, methods, and shared state. Wired into `build_app()` in `crates/api/src/lib.rs`. |
+| **Auth** | `crates/auth/` | `require_auth` middleware verifies the JWT and injects `AuthUser` into request extensions. |
+| **Cache** | `crates/cache/` | `RedisCache` is passed to repositories; cache misses fall back to the DB transparently. |
 
 ### Adding a New Resource
 
 When adding a new resource (e.g., `Tag`, `Comment`), follow this pattern:
 
-1. **Model** — Create `src/models/<resource>.rs` with the domain struct and any Create/Update DTOs. Re-export from `src/models/mod.rs`. Derive `ToSchema` if the type appears in handler signatures.
-2. **Migration** — Add a new SQL file in `migrations/` with the next sequence number (e.g., `011_create_<resource>.sql`). It is picked up automatically by `sqlx::migrate!("./migrations")` — no `main.rs` change needed. Migrations are immutable once committed; create a new file to alter applied schema.
-3. **Repository** — Create `src/repositories/<resource>_repository.rs` implementing CRUD methods. Re-export from `src/repositories/mod.rs`. Wire into `build_app()` in `lib.rs`.
-4. **Handlers** — Create `src/handlers/<resource>_handler.rs` with Axum handler functions and `#[utoipa::path(...)]` annotations. Re-export from `src/handlers/mod.rs`. Add each handler to the `paths(...)` list in `lib.rs::ApiDoc`.
-5. **Routes** — Create `src/routes/<resource>_routes.rs` returning a `Router`. Merge it into the appropriate (public vs protected) group in `build_app()`.
+1. **Model** — Create `crates/models/src/<resource>.rs` with the domain struct and any Create/Update DTOs. Re-export from `crates/models/src/lib.rs`. Derive `ToSchema` if the type appears in handler signatures.
+2. **Migration** — Add a new SQL file in `migrations/` with the next sequence number (e.g., `011_create_<resource>.sql`). It is picked up automatically by `sqlx::migrate!` (wired in `crates/server/src/main.rs`) — no code change needed. Migrations are immutable once committed; create a new file to alter applied schema.
+3. **Repository** — Create `crates/repositories/src/<resource>_repository.rs` implementing CRUD methods. Re-export from `crates/repositories/src/lib.rs`. Wire into `build_app()` in `crates/api/src/lib.rs`.
+4. **Handlers** — Create `crates/api/src/handlers/<resource>_handler.rs` with Axum handler functions and `#[utoipa::path(...)]` annotations. Re-export from `crates/api/src/handlers/mod.rs`. Add each handler to the `paths(...)` list in `crates/api/src/lib.rs::ApiDoc`.
+5. **Routes** — Create `crates/api/src/routes/<resource>_routes.rs` returning a `Router`. Merge it into the appropriate (public vs protected) group in `build_app()`.
 
 ### Conventions
 
@@ -126,7 +135,7 @@ When adding a new resource (e.g., `Tag`, `Comment`), follow this pattern:
 - Route path parameters use `{param}` syntax (Axum 0.8).
 - Handlers return `Result<impl IntoResponse, StatusCode>`.
 - Use `sqlx::query_as` for typed queries — no compile-time checked macros (no `DATABASE_URL` at build time).
-- Migrations are applied at startup via `sqlx::migrate!("./migrations").run(&pool)` and tracked in the `_sqlx_migrations` table.
+- Migrations are applied at startup via `sqlx::migrate!("../../migrations").run(&pool)` (in `crates/server/src/main.rs`; the path is relative to the crate, and the `migrations/` dir stays at the workspace root) and tracked in the `_sqlx_migrations` table.
 - Protected routes go under the `require_auth` middleware group in `build_app()`. Public routes (health, metrics, swagger, auth endpoints) go in the public group.
 
 ## Database
@@ -155,14 +164,14 @@ Defaults (overridable via env):
 
 ```sh
 docker compose up -d
-cargo run
+cargo run -p server
 ```
 
 The server listens on `http://0.0.0.0:8080`. Swagger UI: `http://localhost:8080/swagger-ui`.
 
 ## Testing
 
-Integration tests live under `tests/` and use the dedicated `db-test` instance on port 5433. The shared helper `tests/common/mod.rs` exposes:
+Integration tests live under `crates/api/tests/` and use the dedicated `db-test` instance on port 5433. The shared helper `crates/api/tests/common/mod.rs` exposes:
 
 - `setup_test_db()` — connects, applies migrations via `sqlx::migrate!`, and truncates all tables before each test. Uses a Postgres advisory lock on a single-connection pool to serialize tests across binaries running in parallel.
 - `setup_test_app()` — returns a `Router` backed by the test pool.
@@ -170,7 +179,7 @@ Integration tests live under `tests/` and use the dedicated `db-test` instance o
 - `auth_token()` / `mint_token()` — JWT helpers.
 
 ```sh
-cargo test
+cargo test --workspace
 ```
 
 ## Guidelines for AI Agents
@@ -184,7 +193,7 @@ cargo test
 - **Never edit a migration that has already been committed.** Add a new numbered migration file to evolve the schema. `sqlx::migrate!` validates checksums against `_sqlx_migrations`.
 - **Naming:** files use `snake_case`. Structs use `PascalCase`. Follow the existing `<resource>_repository.rs`, `<resource>_handler.rs`, `<resource>_routes.rs` pattern.
 - **Error handling:** Repositories return `Result<T, sqlx::Error>`. Handlers map errors to appropriate `StatusCode` values.
-- **OpenAPI:** new handlers must be annotated with `#[utoipa::path(...)]` and registered in `lib.rs::ApiDoc`.
+- **OpenAPI:** new handlers must be annotated with `#[utoipa::path(...)]` and registered in `crates/api/src/lib.rs::ApiDoc`.
 - **Auth:** new endpoints are protected by default — merge into the protected group in `build_app()`. Only add to public if the route is genuinely unauthenticated (health, metrics, swagger, auth).
 - **No `.env` files in the repo.** Use environment variables or hardcoded defaults for local development.
 - **Keep `AGENTS.md` up to date.** After making structural changes (new entities, endpoints, migrations, architectural decisions), update this file to reflect the current state of the project.

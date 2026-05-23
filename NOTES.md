@@ -31,4 +31,4 @@ curl -X POST http://localhost:3000/tasks \
 ```
 
 # Run on any port:
-PORT=9090 cargo run
+PORT=9090 cargo run -p server

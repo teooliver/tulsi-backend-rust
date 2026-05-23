@@ -1,0 +1,10 @@
+[package]
+name = "repositories"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+models = { path = "../models" }
+cache = { path = "../cache" }
+sqlx = { workspace = true }
+uuid = { workspace = true }
