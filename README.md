@@ -26,7 +26,7 @@ docker compose up -d
 Migrations run automatically on startup.
 
 ```bash
-cargo run
+cargo run -p server
 ```
 
 Default environment (overridable):
@@ -103,10 +103,27 @@ curl -X POST http://localhost:8080/projects \
 ## 5. Tests
 
 ```bash
-cargo test
+cargo test --workspace
 ```
 
-The integration tests use the `db-test` instance on port 5433.
+The integration tests live in `crates/api/tests/` and use the `db-test` instance on port 5433.
+
+## Workspace layout
+
+The backend is split into focused crates under `crates/` to keep compile times
+down (editing a handler doesn't recompile the OpenTelemetry stack) and boundaries
+clear:
+
+| Crate | Responsibility |
+|-------|----------------|
+| `models` | Domain types & DTOs (serde / sqlx `FromRow` / utoipa `ToSchema`) |
+| `auth` | JWT creation, `require_auth` middleware, `AuthUser` extractor |
+| `cache` | `RedisCache` wrapper |
+| `observability` | tracing + OTLP init, `/health` and `/metrics` handlers |
+| `repositories` | All SQL; one `*_repository.rs` per resource (deps: `models`, `cache`) |
+| `api` | Axum handlers, routes, `build_app()`, OpenAPI doc; hosts integration tests |
+| `server` | Thin binary: config, migrations, Redis wiring, serves `api::build_app()` |
+| `seed` | Standalone DB seeding binary (`cargo run -p seed`) |
 
 ## Useful files
 

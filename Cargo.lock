@@ -51,6 +51,30 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f202df86484c868dbad7eaa557ef785d5c66295e41b460ef922eca0723b842c"
 
 [[package]]
+name = "api"
+version = "0.1.0"
+dependencies = [
+ "argon2",
+ "auth",
+ "axum 0.8.8",
+ "axum-test",
+ "cache",
+ "chrono",
+ "metrics-exporter-prometheus",
+ "models",
+ "observability",
+ "repositories",
+ "serde_json",
+ "sqlx",
+ "tokio",
+ "tower-http",
+ "tracing",
+ "utoipa",
+ "utoipa-swagger-ui",
+ "uuid",
+]
+
+[[package]]
 name = "arbitrary"
 version = "1.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -136,6 +160,18 @@ name = "atomic-waker"
 version = "1.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1505bd5d3d116872e7271a6d4e16d81d0c8570876c8de68093a09ac269d8aac0"
+
+[[package]]
+name = "auth"
+version = "0.1.0"
+dependencies = [
+ "axum 0.8.8",
+ "chrono",
+ "jsonwebtoken",
+ "serde",
+ "serde_json",
+ "uuid",
+]
 
 [[package]]
 name = "autocfg"
@@ -265,26 +301,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "axum-prometheus"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "42e1a6651f119707ec6c416f38fdb5be223707627fe6d47f912850634c106215"
-dependencies = [
- "axum 0.8.8",
- "bytes",
- "futures-core",
- "http",
- "http-body",
- "matchit 0.8.4",
- "metrics",
- "metrics-exporter-prometheus",
- "pin-project",
- "tokio",
- "tower 0.5.3",
- "tower-http",
-]
-
-[[package]]
 name = "axum-test"
 version = "19.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -389,6 +405,16 @@ name = "bytesize"
 version = "2.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6bd91ee7b2422bcb158d90ef4d14f75ef67f340943fc4149891dcce8f8b972a3"
+
+[[package]]
+name = "cache"
+version = "0.1.0"
+dependencies = [
+ "redis",
+ "serde",
+ "serde_json",
+ "tracing",
+]
 
 [[package]]
 name = "cc"
@@ -1614,6 +1640,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "models"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "serde",
+ "sqlx",
+ "utoipa",
+ "uuid",
+]
+
+[[package]]
 name = "nu-ansi-term"
 version = "0.50.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1716,6 +1753,21 @@ checksum = "071dfc062690e90b734c0b2273ce72ad0ffa95f0c74596bc250dcfd960262841"
 dependencies = [
  "autocfg",
  "libm",
+]
+
+[[package]]
+name = "observability"
+version = "0.1.0"
+dependencies = [
+ "axum 0.8.8",
+ "metrics-exporter-prometheus",
+ "opentelemetry",
+ "opentelemetry-otlp",
+ "opentelemetry_sdk",
+ "sqlx",
+ "tracing",
+ "tracing-opentelemetry",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -2228,6 +2280,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc897dd8d9e8bd1ed8cdad82b5966c3e0ecae09fb1907d58efaa013543185d0a"
 
 [[package]]
+name = "repositories"
+version = "0.1.0"
+dependencies = [
+ "cache",
+ "models",
+ "sqlx",
+ "uuid",
+]
+
+[[package]]
 name = "reqwest"
 version = "0.12.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2460,6 +2522,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "seed"
+version = "0.1.0"
+dependencies = [
+ "fake",
+ "rand 0.9.2",
+ "sqlx",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
 name = "semver"
 version = "1.0.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2529,6 +2602,21 @@ dependencies = [
  "itoa",
  "ryu",
  "serde",
+]
+
+[[package]]
+name = "server"
+version = "0.1.0"
+dependencies = [
+ "api",
+ "axum 0.8.8",
+ "cache",
+ "observability",
+ "redis",
+ "sqlx",
+ "tokio",
+ "tower-http",
+ "tracing",
 ]
 
 [[package]]
@@ -3284,47 +3372,6 @@ name = "try-lock"
 version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
-
-[[package]]
-name = "tulsi-rust-backend"
-version = "0.1.0"
-dependencies = [
- "argon2",
- "axum 0.8.8",
- "axum-prometheus",
- "axum-test",
- "chrono",
- "jsonwebtoken",
- "metrics",
- "metrics-exporter-prometheus",
- "opentelemetry",
- "opentelemetry-otlp",
- "opentelemetry_sdk",
- "redis",
- "serde",
- "serde_json",
- "sqlx",
- "tokio",
- "tower 0.5.3",
- "tower-http",
- "tracing",
- "tracing-opentelemetry",
- "tracing-subscriber",
- "utoipa",
- "utoipa-swagger-ui",
- "uuid",
-]
-
-[[package]]
-name = "tulsi-seed"
-version = "0.1.0"
-dependencies = [
- "fake",
- "rand 0.9.2",
- "sqlx",
- "tokio",
- "uuid",
-]
 
 [[package]]
 name = "typeid"
