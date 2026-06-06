@@ -1,0 +1,33 @@
+{
+  "name": "Tulsi Rust Backend",
+  // Base compose (db / db-test / redis / app) plus the dev overlay.
+  "dockerComposeFile": ["../docker-compose.yml", "docker-compose.yml"],
+  "service": "devcontainer",
+  "workspaceFolder": "/workspace",
+  // Bring up only what the dev container needs; skip building the prod `app` image.
+  "runServices": ["devcontainer", "db", "db-test", "redis"],
+  "remoteUser": "vscode",
+  // 8080 = the server you run with `cargo run -p server`.
+  "forwardPorts": [8080],
+  "portsAttributes": {
+    "8080": { "label": "API + Swagger UI", "onAutoForward": "notify" }
+  },
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "rust-lang.rust-analyzer",
+        "tamasfe.even-better-toml",
+        "vadimcn.vscode-lldb",
+        "ms-azuretools.vscode-docker"
+      ],
+      "settings": {
+        "rust-analyzer.check.command": "clippy",
+        "[rust]": {
+          "editor.formatOnSave": true,
+          "editor.defaultFormatter": "rust-lang.rust-analyzer"
+        }
+      }
+    }
+  }
+}

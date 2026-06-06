@@ -2,6 +2,21 @@
 
 Axum + sqlx + Postgres backend for the Tulsi project management app. Provides JWT-authenticated CRUD APIs for tasks, projects, boards, columns, plans, labels, and users, with Swagger UI for interactive docs.
 
+## Quick start with a Dev Container
+
+The fastest way in: open the repo in a [Dev Container](https://containers.dev)-aware
+editor (VS Code with the *Dev Containers* extension, or GitHub Codespaces) and
+choose **Reopen in Container**. This builds a Rust toolchain container wired to
+the Postgres, test-Postgres, and Redis services, with `DATABASE_URL`,
+`TEST_DATABASE_URL`, and `REDIS_URL` already set. Once it finishes, just run:
+
+```bash
+cargo run -p server   # then open http://localhost:8080/swagger-ui/
+cargo test --workspace
+```
+
+The manual setup below is for working without a dev container.
+
 ## Prerequisites
 
 - Rust (stable, edition 2024)
@@ -106,7 +121,7 @@ curl -X POST http://localhost:8080/projects \
 cargo test --workspace
 ```
 
-The integration tests live in `crates/api/tests/` and use the `db-test` instance on port 5433.
+The integration tests live in `crates/api/tests/` and use the `db-test` instance on port 5433. See `docs/test-database.md` for why tests need a separate DB and how they serialize against each other.
 
 ## Workspace layout
 
