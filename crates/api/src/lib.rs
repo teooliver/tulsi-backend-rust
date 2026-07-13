@@ -21,7 +21,7 @@ use repositories::project_repository::ProjectRepository;
 use repositories::task_history_repository::TaskHistoryRepository;
 use repositories::task_repository::TaskRepository;
 use repositories::user_repository::UserRepository;
-use routes::auth_routes::auth_routes;
+use routes::auth_routes::{auth_protected_routes, auth_routes};
 use routes::board_routes::board_routes;
 use routes::column_routes::column_routes;
 use routes::label_routes::label_routes;
@@ -179,7 +179,8 @@ pub fn build_app(pool: PgPool, cache: Option<RedisCache>, prometheus_handle: Pro
         .merge(column_routes(column_repo))
         .merge(plan_routes(plan_repo))
         .merge(label_routes(label_repo))
-        .merge(user_routes(user_repo))
+        .merge(user_routes(user_repo.clone()))
+        .merge(auth_protected_routes(user_repo))
         .layer(middleware::from_fn(require_auth))
         .layer(Extension(task_history_repo));
 
