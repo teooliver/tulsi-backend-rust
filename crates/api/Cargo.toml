@@ -1,7 +1,7 @@
 [package]
 name = "api"
-version = "0.1.0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
 
 [dependencies]
 models = { path = "../models" }
@@ -25,3 +25,6 @@ metrics-exporter-prometheus = { workspace = true }
 [dev-dependencies]
 axum-test = { workspace = true }
 chrono = { workspace = true }
+
+[lints]
+workspace = true

@@ -1,5 +1,6 @@
 # Stage 1: Build
-FROM rust:1.88 AS builder
+# Keep this Rust version in sync with .devcontainer/post-create.sh (RUST_VERSION).
+FROM rust:1.88.0 AS builder
 
 WORKDIR /app
 

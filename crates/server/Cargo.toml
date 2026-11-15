@@ -1,7 +1,7 @@
 [package]
 name = "server"
-version = "0.1.0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
 
 [dependencies]
 api = { path = "../api" }
@@ -14,3 +14,6 @@ sqlx = { workspace = true }
 redis = { workspace = true }
 tower-http = { workspace = true }
 tracing = { workspace = true }
+
+[lints]
+workspace = true

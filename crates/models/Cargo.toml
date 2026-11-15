@@ -1,7 +1,7 @@
 [package]
 name = "models"
-version = "0.1.0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
 
 [dependencies]
 serde = { workspace = true }
@@ -9,3 +9,6 @@ chrono = { workspace = true }
 uuid = { workspace = true }
 sqlx = { workspace = true }
 utoipa = { workspace = true }
+
+[lints]
+workspace = true

@@ -54,7 +54,7 @@ async fn main() {
     let addr = format!("0.0.0.0:{port}");
     let listener = tokio::net::TcpListener::bind(&addr)
         .await
-        .unwrap_or_else(|_| panic!("Failed to bind to {addr}"));
+        .unwrap_or_else(|e| panic!("Failed to bind to {addr}: {e}"));
 
     tracing::info!("Server running on http://{addr}");
     axum::serve(listener, app).await.unwrap();
