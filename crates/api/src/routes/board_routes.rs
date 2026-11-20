@@ -18,9 +18,5 @@ pub fn board_routes(repo: Arc<BoardRepository>) -> Router {
                 .put(board_handler::update_board)
                 .delete(board_handler::delete_board),
         )
-        .route(
-            "/boards/{id}/projects",
-            get(board_handler::list_board_projects),
-        )
         .with_state(repo)
 }

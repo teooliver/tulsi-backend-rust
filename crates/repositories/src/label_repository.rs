@@ -123,6 +123,7 @@ impl LabelRepository {
             "SELECT l.*
              FROM labels l
              JOIN task_labels tl ON tl.label_id = l.id
+             JOIN tasks t ON t.id = tl.task_id AND t.deleted_at IS NULL
              WHERE tl.task_id = $1
              ORDER BY l.name ASC",
         )
@@ -131,23 +132,30 @@ impl LabelRepository {
         .await
     }
 
-    /// Returns true if the row was inserted, false if the pair already existed.
+    /// Returns `None` if the task doesn't exist or is deleted, otherwise whether
+    /// the row was inserted (false if the pair already existed). A missing
+    /// label surfaces as a foreign-key violation.
     pub async fn attach_to_task(
         &self,
         task_id: Uuid,
         label_id: Uuid,
-    ) -> Result<bool, sqlx::Error> {
-        let result = sqlx::query(
-            "INSERT INTO task_labels (task_id, label_id)
-             VALUES ($1, $2)
-             ON CONFLICT DO NOTHING",
+    ) -> Result<Option<bool>, sqlx::Error> {
+        let (task_exists, inserted): (bool, bool) = sqlx::query_as(
+            "WITH live AS (SELECT id FROM tasks WHERE id = $1 AND deleted_at IS NULL),
+                  ins AS (
+                      INSERT INTO task_labels (task_id, label_id)
+                      SELECT id, $2 FROM live
+                      ON CONFLICT DO NOTHING
+                      RETURNING 1
+                  )
+             SELECT EXISTS (SELECT 1 FROM live), EXISTS (SELECT 1 FROM ins)",
         )
         .bind(task_id)
         .bind(label_id)
-        .execute(&self.pool)
+        .fetch_one(&self.pool)
         .await?;
 
-        Ok(result.rows_affected() > 0)
+        Ok(task_exists.then_some(inserted))
     }
 
     pub async fn detach_from_task(
@@ -156,7 +164,9 @@ impl LabelRepository {
         label_id: Uuid,
     ) -> Result<bool, sqlx::Error> {
         let result = sqlx::query(
-            "DELETE FROM task_labels WHERE task_id = $1 AND label_id = $2",
+            "DELETE FROM task_labels
+             WHERE task_id = $1 AND label_id = $2
+               AND EXISTS (SELECT 1 FROM tasks WHERE id = $1 AND deleted_at IS NULL)",
         )
         .bind(task_id)
         .bind(label_id)

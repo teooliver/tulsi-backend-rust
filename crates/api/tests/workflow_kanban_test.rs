@@ -201,45 +201,6 @@ async fn delete_project_nullifies_task_project_id() {
 }
 
 #[tokio::test]
-async fn project_board_relationship() {
-    let server = setup().await;
-
-    // Create a board
-    let board: serde_json::Value = server
-        .post("/boards")
-        .json(&json!({"name": "Board"}))
-        .await
-        .json();
-    let board_id = board["id"].as_str().unwrap();
-
-    // Create projects and associate with board via update
-    let project: serde_json::Value = server
-        .post("/projects")
-        .json(&json!({"name": "Project 1"}))
-        .await
-        .json();
-    let project_id = project["id"].as_str().unwrap();
-
-    // Note: CreateProject doesn't have board_id, but we can check via the board's project list
-    // The board_id association would need to be set via direct DB or an update
-    // For now, verify the endpoint returns an empty list since projects aren't linked
-    let board_projects: Vec<serde_json::Value> = server
-        .get(&format!("/boards/{board_id}/projects"))
-        .await
-        .json();
-
-    // Projects aren't linked to board via HTTP API yet (no board_id in CreateProject)
-    // This documents the current behavior
-    assert!(board_projects.is_empty());
-
-    // Verify the project exists independently
-    server
-        .get(&format!("/projects/{project_id}"))
-        .await
-        .assert_status_ok();
-}
-
-#[tokio::test]
 async fn task_with_full_associations() {
     let server = setup().await;
 

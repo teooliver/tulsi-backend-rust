@@ -202,31 +202,3 @@ async fn create_board_missing_name_returns_422() {
 
     response.assert_status(StatusCode::UNPROCESSABLE_ENTITY);
 }
-
-#[tokio::test]
-async fn list_board_projects_returns_empty_for_new_board() {
-    let server = setup().await;
-
-    let board: serde_json::Value = server
-        .post("/boards")
-        .json(&json!({"name": "Board"}))
-        .await
-        .json();
-    let board_id = board["id"].as_str().unwrap();
-
-    let response = server.get(&format!("/boards/{board_id}/projects")).await;
-
-    response.assert_status_ok();
-    let body: Vec<serde_json::Value> = response.json();
-    assert!(body.is_empty());
-}
-
-#[tokio::test]
-async fn list_board_projects_not_found_returns_404() {
-    let server = setup().await;
-    let id = Uuid::new_v4();
-
-    let response = server.get(&format!("/boards/{id}/projects")).await;
-
-    response.assert_status(StatusCode::NOT_FOUND);
-}

@@ -58,23 +58,23 @@ async fn full_user_journey() {
     assert_eq!(first_task_labels.len(), 1);
     assert_eq!(first_task_labels[0]["id"], label_id);
 
-    // 4. Create a plan filtered by that label
-    let plan: serde_json::Value = server
-        .post("/plans")
+    // 4. Create a saved_view filtered by that label
+    let saved_view: serde_json::Value = server
+        .post("/saved-views")
         .json(&json!({
             "name": "Urgent work",
             "filters": {"label_id": [label_id]}
         }))
         .await
         .json();
-    let plan_id = plan["id"].as_str().unwrap().to_string();
+    let saved_view_id = saved_view["id"].as_str().unwrap().to_string();
 
-    let plan_tasks: Vec<serde_json::Value> = server
-        .get(&format!("/plans/{plan_id}/tasks"))
+    let saved_view_tasks: Vec<serde_json::Value> = server
+        .get(&format!("/saved-views/{saved_view_id}/tasks"))
         .await
         .json();
-    assert_eq!(plan_tasks.len(), 3);
-    let returned_ids: std::collections::HashSet<String> = plan_tasks
+    assert_eq!(saved_view_tasks.len(), 3);
+    let returned_ids: std::collections::HashSet<String> = saved_view_tasks
         .iter()
         .map(|t| t["id"].as_str().unwrap().to_string())
         .collect();

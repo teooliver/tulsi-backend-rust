@@ -160,29 +160,3 @@ async fn test_delete_board_not_found() {
     let deleted = repo.delete(Uuid::new_v4()).await.unwrap();
     assert!(!deleted);
 }
-
-#[tokio::test]
-async fn test_find_projects() {
-    let pool = common::setup_test_db().await;
-    let board_repo = BoardRepository::new(pool.clone(), None);
-
-    let board = board_repo
-        .create(CreateBoard {
-            name: "Board with projects".to_string(),
-            description: None,
-        })
-        .await
-        .unwrap();
-
-    for name in ["Project 1", "Project 2"] {
-        sqlx::query("INSERT INTO projects (name, description, board_id) VALUES ($1, '', $2)")
-            .bind(name)
-            .bind(board.id)
-            .execute(&pool)
-            .await
-            .unwrap();
-    }
-
-    let projects = board_repo.find_projects(board.id).await.unwrap();
-    assert_eq!(projects.len(), 2);
-}

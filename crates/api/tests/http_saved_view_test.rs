@@ -35,12 +35,12 @@ async fn register(server: &TestServer) -> (String, Uuid) {
 // ── CRUD ─────────────────────────────────────────────────────────────────────
 
 #[tokio::test]
-async fn create_plan_returns_201_with_body() {
+async fn create_saved_view_returns_201_with_body() {
     let server = setup().await;
     let (token, _) = register(&server).await;
 
     let response = server
-        .post("/plans")
+        .post("/saved-views")
         .add_header(
             axum::http::header::AUTHORIZATION,
             bearer(&token),
@@ -60,15 +60,15 @@ async fn create_plan_returns_201_with_body() {
 }
 
 #[tokio::test]
-async fn list_plans_returns_200_scoped_to_user() {
+async fn list_saved_views_returns_200_scoped_to_user() {
     let server = setup().await;
     let (token1, _) = register(&server).await;
     let (token2, _) = register(&server).await;
 
-    // user1 creates two plans
-    for name in ["Plan A", "Plan B"] {
+    // user1 creates two saved_views
+    for name in ["View A", "View B"] {
         server
-            .post("/plans")
+            .post("/saved-views")
             .add_header(
                 axum::http::header::AUTHORIZATION,
                 bearer(&token1),
@@ -76,18 +76,18 @@ async fn list_plans_returns_200_scoped_to_user() {
             .json(&json!({"name": name, "filters": {}}))
             .await;
     }
-    // user2 creates one plan
+    // user2 creates one saved_view
     server
-        .post("/plans")
+        .post("/saved-views")
         .add_header(
             axum::http::header::AUTHORIZATION,
             bearer(&token2),
         )
-        .json(&json!({"name": "Plan C", "filters": {}}))
+        .json(&json!({"name": "View C", "filters": {}}))
         .await;
 
     let response = server
-        .get("/plans")
+        .get("/saved-views")
         .add_header(
             axum::http::header::AUTHORIZATION,
             bearer(&token1),
@@ -100,23 +100,23 @@ async fn list_plans_returns_200_scoped_to_user() {
 }
 
 #[tokio::test]
-async fn get_plan_returns_200() {
+async fn get_saved_view_returns_200() {
     let server = setup().await;
     let (token, _) = register(&server).await;
 
     let created: serde_json::Value = server
-        .post("/plans")
+        .post("/saved-views")
         .add_header(
             axum::http::header::AUTHORIZATION,
             bearer(&token),
         )
-        .json(&json!({"name": "My Plan", "filters": {}}))
+        .json(&json!({"name": "My Saved View", "filters": {}}))
         .await
         .json();
     let id = created["id"].as_str().unwrap();
 
     let response = server
-        .get(&format!("/plans/{id}"))
+        .get(&format!("/saved-views/{id}"))
         .add_header(
             axum::http::header::AUTHORIZATION,
             bearer(&token),
@@ -126,28 +126,28 @@ async fn get_plan_returns_200() {
     response.assert_status_ok();
     let body: serde_json::Value = response.json();
     assert_eq!(body["id"], id);
-    assert_eq!(body["name"], "My Plan");
+    assert_eq!(body["name"], "My Saved View");
 }
 
 #[tokio::test]
-async fn get_plan_another_users_plan_returns_404() {
+async fn get_saved_view_another_users_saved_view_returns_404() {
     let server = setup().await;
     let (token1, _) = register(&server).await;
     let (token2, _) = register(&server).await;
 
     let created: serde_json::Value = server
-        .post("/plans")
+        .post("/saved-views")
         .add_header(
             axum::http::header::AUTHORIZATION,
             bearer(&token1),
         )
-        .json(&json!({"name": "Private Plan", "filters": {}}))
+        .json(&json!({"name": "Private Saved View", "filters": {}}))
         .await
         .json();
     let id = created["id"].as_str().unwrap();
 
     let response = server
-        .get(&format!("/plans/{id}"))
+        .get(&format!("/saved-views/{id}"))
         .add_header(
             axum::http::header::AUTHORIZATION,
             bearer(&token2),
@@ -158,12 +158,12 @@ async fn get_plan_another_users_plan_returns_404() {
 }
 
 #[tokio::test]
-async fn update_plan_returns_200() {
+async fn update_saved_view_returns_200() {
     let server = setup().await;
     let (token, _) = register(&server).await;
 
     let created: serde_json::Value = server
-        .post("/plans")
+        .post("/saved-views")
         .add_header(
             axum::http::header::AUTHORIZATION,
             bearer(&token),
@@ -174,7 +174,7 @@ async fn update_plan_returns_200() {
     let id = created["id"].as_str().unwrap();
 
     let response = server
-        .put(&format!("/plans/{id}"))
+        .put(&format!("/saved-views/{id}"))
         .add_header(
             axum::http::header::AUTHORIZATION,
             bearer(&token),
@@ -188,12 +188,12 @@ async fn update_plan_returns_200() {
 }
 
 #[tokio::test]
-async fn delete_plan_returns_204() {
+async fn delete_saved_view_returns_204() {
     let server = setup().await;
     let (token, _) = register(&server).await;
 
     let created: serde_json::Value = server
-        .post("/plans")
+        .post("/saved-views")
         .add_header(
             axum::http::header::AUTHORIZATION,
             bearer(&token),
@@ -204,7 +204,7 @@ async fn delete_plan_returns_204() {
     let id = created["id"].as_str().unwrap();
 
     server
-        .delete(&format!("/plans/{id}"))
+        .delete(&format!("/saved-views/{id}"))
         .add_header(
             axum::http::header::AUTHORIZATION,
             bearer(&token),
@@ -214,7 +214,7 @@ async fn delete_plan_returns_204() {
 
     // Verify it's gone
     server
-        .get(&format!("/plans/{id}"))
+        .get(&format!("/saved-views/{id}"))
         .add_header(
             axum::http::header::AUTHORIZATION,
             bearer(&token),
@@ -226,7 +226,7 @@ async fn delete_plan_returns_204() {
 // ── Filter execution ──────────────────────────────────────────────────────────
 
 #[tokio::test]
-async fn execute_plan_returns_matching_tasks() {
+async fn execute_saved_view_returns_matching_tasks() {
     let server = setup().await;
     let (token, user_id) = register(&server).await;
 
@@ -252,9 +252,9 @@ async fn execute_plan_returns_matching_tasks() {
         .json(&json!({"title": "Also mine"}))
         .await;
 
-    // Plan filtering by author = current user
-    let plan: serde_json::Value = server
-        .post("/plans")
+    // Saved View filtering by author = current user
+    let saved_view: serde_json::Value = server
+        .post("/saved-views")
         .add_header(
             axum::http::header::AUTHORIZATION,
             bearer(&token),
@@ -267,10 +267,10 @@ async fn execute_plan_returns_matching_tasks() {
         }))
         .await
         .json();
-    let plan_id = plan["id"].as_str().unwrap();
+    let saved_view_id = saved_view["id"].as_str().unwrap();
 
     let response = server
-        .get(&format!("/plans/{plan_id}/tasks"))
+        .get(&format!("/saved-views/{saved_view_id}/tasks"))
         .add_header(
             axum::http::header::AUTHORIZATION,
             bearer(&token),
@@ -284,7 +284,7 @@ async fn execute_plan_returns_matching_tasks() {
 }
 
 #[tokio::test]
-async fn execute_plan_empty_filters_returns_all_tasks() {
+async fn execute_saved_view_empty_filters_returns_all_tasks() {
     let server = setup().await;
     let (token, _) = register(&server).await;
 
@@ -299,8 +299,8 @@ async fn execute_plan_empty_filters_returns_all_tasks() {
             .await;
     }
 
-    let plan: serde_json::Value = server
-        .post("/plans")
+    let saved_view: serde_json::Value = server
+        .post("/saved-views")
         .add_header(
             axum::http::header::AUTHORIZATION,
             bearer(&token),
@@ -308,10 +308,10 @@ async fn execute_plan_empty_filters_returns_all_tasks() {
         .json(&json!({"name": "Everything", "filters": {}}))
         .await
         .json();
-    let plan_id = plan["id"].as_str().unwrap();
+    let saved_view_id = saved_view["id"].as_str().unwrap();
 
     let tasks: Vec<serde_json::Value> = server
-        .get(&format!("/plans/{plan_id}/tasks"))
+        .get(&format!("/saved-views/{saved_view_id}/tasks"))
         .add_header(
             axum::http::header::AUTHORIZATION,
             bearer(&token),
@@ -325,28 +325,28 @@ async fn execute_plan_empty_filters_returns_all_tasks() {
 // ── Auth enforcement ──────────────────────────────────────────────────────────
 
 #[tokio::test]
-async fn plans_endpoints_require_auth() {
+async fn saved_views_endpoints_require_auth() {
     let server = setup().await;
 
     server
-        .get("/plans")
+        .get("/saved-views")
         .await
         .assert_status(StatusCode::UNAUTHORIZED);
 
     server
-        .post("/plans")
+        .post("/saved-views")
         .json(&json!({"name": "x", "filters": {}}))
         .await
         .assert_status(StatusCode::UNAUTHORIZED);
 
     let fake_id = Uuid::new_v4();
     server
-        .get(&format!("/plans/{fake_id}"))
+        .get(&format!("/saved-views/{fake_id}"))
         .await
         .assert_status(StatusCode::UNAUTHORIZED);
 
     server
-        .get(&format!("/plans/{fake_id}/tasks"))
+        .get(&format!("/saved-views/{fake_id}/tasks"))
         .await
         .assert_status(StatusCode::UNAUTHORIZED);
 }

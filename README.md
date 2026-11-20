@@ -1,6 +1,6 @@
 # Tulsi Rust Backend
 
-Axum + sqlx + Postgres backend for the Tulsi project management app. Provides JWT-authenticated CRUD APIs for tasks, projects, boards, columns, plans, labels, and users, with Swagger UI for interactive docs.
+Axum + sqlx + Postgres backend for the Tulsi project management app. Provides JWT-authenticated CRUD APIs for tasks, projects, boards, columns, saved views, labels, and users, with Swagger UI for interactive docs.
 
 ## Quick start with a Dev Container
 

@@ -1,25 +1,27 @@
 mod common;
 
-use models::plan::{CreatePlan, PlanFilters, UpdatePlan};
+use models::saved_view::{CreateSavedView, SavedViewFilters, UpdateSavedView};
 use models::task::CreateTask;
 use models::user::CreateUser;
-use repositories::plan_repository::PlanRepository;
+use repositories::saved_view_repository::SavedViewRepository;
 use repositories::task_repository::TaskRepository;
 use repositories::user_repository::UserRepository;
 use uuid::Uuid;
 
 struct Repos {
-    plans: PlanRepository,
+    saved_views: SavedViewRepository,
     tasks: TaskRepository,
     users: UserRepository,
+    author: Uuid,
 }
 
 async fn setup() -> Repos {
     let pool = common::setup_test_db().await;
     Repos {
-        plans: PlanRepository::new(pool.clone(), None),
+        saved_views: SavedViewRepository::new(pool.clone(), None),
         tasks: TaskRepository::new(pool.clone(), None),
         users: UserRepository::new(pool.clone(), None),
+        author: common::make_user(&pool).await,
     }
 }
 
@@ -34,47 +36,47 @@ async fn make_user(users: &UserRepository) -> Uuid {
         .id
 }
 
-fn empty_plan(name: &str) -> CreatePlan {
-    CreatePlan {
+fn empty_saved_view(name: &str) -> CreateSavedView {
+    CreateSavedView {
         name: name.to_string(),
         description: None,
-        filters: PlanFilters::default(),
+        filters: SavedViewFilters::default(),
     }
 }
 
 // ── CRUD ─────────────────────────────────────────────────────────────────────
 
 #[tokio::test]
-async fn test_create_plan() {
+async fn test_create_saved_view() {
     let r = setup().await;
     let owner = make_user(&r.users).await;
 
-    let plan = r.plans.create(owner, empty_plan("Sprint 1")).await.unwrap();
+    let saved_view = r.saved_views.create(owner, empty_saved_view("Sprint 1")).await.unwrap();
 
-    assert_eq!(plan.name, "Sprint 1");
-    assert_eq!(plan.description, "");
-    assert_eq!(plan.owner_id, owner);
+    assert_eq!(saved_view.name, "Sprint 1");
+    assert_eq!(saved_view.description, "");
+    assert_eq!(saved_view.owner_id, owner);
 }
 
 #[tokio::test]
-async fn test_create_plan_with_description() {
+async fn test_create_saved_view_with_description() {
     let r = setup().await;
     let owner = make_user(&r.users).await;
 
-    let plan = r
-        .plans
+    let saved_view = r
+        .saved_views
         .create(
             owner,
-            CreatePlan {
+            CreateSavedView {
                 name: "Q4 Backlog".to_string(),
                 description: Some("All Q4 work".to_string()),
-                filters: PlanFilters::default(),
+                filters: SavedViewFilters::default(),
             },
         )
         .await
         .unwrap();
 
-    assert_eq!(plan.description, "All Q4 work");
+    assert_eq!(saved_view.description, "All Q4 work");
 }
 
 #[tokio::test]
@@ -83,32 +85,32 @@ async fn test_find_all_by_owner_scoped_to_owner() {
     let owner1 = make_user(&r.users).await;
     let owner2 = make_user(&r.users).await;
 
-    r.plans.create(owner1, empty_plan("Plan A")).await.unwrap();
-    r.plans.create(owner1, empty_plan("Plan B")).await.unwrap();
-    r.plans.create(owner2, empty_plan("Plan C")).await.unwrap();
+    r.saved_views.create(owner1, empty_saved_view("View A")).await.unwrap();
+    r.saved_views.create(owner1, empty_saved_view("View B")).await.unwrap();
+    r.saved_views.create(owner2, empty_saved_view("View C")).await.unwrap();
 
-    let owner1_plans = r.plans.find_all_by_owner(owner1).await.unwrap();
-    let owner2_plans = r.plans.find_all_by_owner(owner2).await.unwrap();
+    let owner1_saved_views = r.saved_views.find_all_by_owner(owner1).await.unwrap();
+    let owner2_saved_views = r.saved_views.find_all_by_owner(owner2).await.unwrap();
 
-    assert_eq!(owner1_plans.len(), 2);
-    assert_eq!(owner2_plans.len(), 1);
-    assert_eq!(owner2_plans[0].name, "Plan C");
+    assert_eq!(owner1_saved_views.len(), 2);
+    assert_eq!(owner2_saved_views.len(), 1);
+    assert_eq!(owner2_saved_views[0].name, "View C");
 }
 
 #[tokio::test]
-async fn test_find_by_id_and_owner_returns_plan() {
+async fn test_find_by_id_and_owner_returns_saved_view() {
     let r = setup().await;
     let owner = make_user(&r.users).await;
-    let plan = r.plans.create(owner, empty_plan("My Plan")).await.unwrap();
+    let saved_view = r.saved_views.create(owner, empty_saved_view("My Saved View")).await.unwrap();
 
     let found = r
-        .plans
-        .find_by_id_and_owner(plan.id, owner)
+        .saved_views
+        .find_by_id_and_owner(saved_view.id, owner)
         .await
         .unwrap();
 
     assert!(found.is_some());
-    assert_eq!(found.unwrap().name, "My Plan");
+    assert_eq!(found.unwrap().name, "My Saved View");
 }
 
 #[tokio::test]
@@ -116,11 +118,11 @@ async fn test_find_by_id_and_owner_wrong_owner_returns_none() {
     let r = setup().await;
     let owner = make_user(&r.users).await;
     let other = make_user(&r.users).await;
-    let plan = r.plans.create(owner, empty_plan("My Plan")).await.unwrap();
+    let saved_view = r.saved_views.create(owner, empty_saved_view("My Saved View")).await.unwrap();
 
     let found = r
-        .plans
-        .find_by_id_and_owner(plan.id, other)
+        .saved_views
+        .find_by_id_and_owner(saved_view.id, other)
         .await
         .unwrap();
 
@@ -128,17 +130,17 @@ async fn test_find_by_id_and_owner_wrong_owner_returns_none() {
 }
 
 #[tokio::test]
-async fn test_update_plan_name() {
+async fn test_update_saved_view_name() {
     let r = setup().await;
     let owner = make_user(&r.users).await;
-    let plan = r.plans.create(owner, empty_plan("Old Name")).await.unwrap();
+    let saved_view = r.saved_views.create(owner, empty_saved_view("Old Name")).await.unwrap();
 
     let updated = r
-        .plans
+        .saved_views
         .update(
-            plan.id,
+            saved_view.id,
             owner,
-            UpdatePlan {
+            UpdateSavedView {
                 name: Some("New Name".to_string()),
                 description: None,
                 filters: None,
@@ -153,21 +155,21 @@ async fn test_update_plan_name() {
 }
 
 #[tokio::test]
-async fn test_update_plan_filters() {
+async fn test_update_saved_view_filters() {
     let r = setup().await;
     let owner = make_user(&r.users).await;
-    let plan = r.plans.create(owner, empty_plan("Plan")).await.unwrap();
+    let saved_view = r.saved_views.create(owner, empty_saved_view("Saved View")).await.unwrap();
     let user_id = make_user(&r.users).await;
 
     let updated = r
-        .plans
+        .saved_views
         .update(
-            plan.id,
+            saved_view.id,
             owner,
-            UpdatePlan {
+            UpdateSavedView {
                 name: None,
                 description: None,
-                filters: Some(PlanFilters {
+                filters: Some(SavedViewFilters {
                     assigned_to: Some(vec![user_id]),
                     ..Default::default()
                 }),
@@ -181,18 +183,18 @@ async fn test_update_plan_filters() {
 }
 
 #[tokio::test]
-async fn test_update_plan_wrong_owner_returns_none() {
+async fn test_update_saved_view_wrong_owner_returns_none() {
     let r = setup().await;
     let owner = make_user(&r.users).await;
     let other = make_user(&r.users).await;
-    let plan = r.plans.create(owner, empty_plan("Plan")).await.unwrap();
+    let saved_view = r.saved_views.create(owner, empty_saved_view("Saved View")).await.unwrap();
 
     let result = r
-        .plans
+        .saved_views
         .update(
-            plan.id,
+            saved_view.id,
             other,
-            UpdatePlan {
+            UpdateSavedView {
                 name: Some("Hijacked".to_string()),
                 description: None,
                 filters: None,
@@ -205,39 +207,39 @@ async fn test_update_plan_wrong_owner_returns_none() {
 }
 
 #[tokio::test]
-async fn test_delete_plan() {
+async fn test_delete_saved_view() {
     let r = setup().await;
     let owner = make_user(&r.users).await;
-    let plan = r.plans.create(owner, empty_plan("To Delete")).await.unwrap();
+    let saved_view = r.saved_views.create(owner, empty_saved_view("To Delete")).await.unwrap();
 
-    let deleted = r.plans.delete(plan.id, owner).await.unwrap();
+    let deleted = r.saved_views.delete(saved_view.id, owner).await.unwrap();
     assert!(deleted);
 
-    let found = r.plans.find_by_id_and_owner(plan.id, owner).await.unwrap();
+    let found = r.saved_views.find_by_id_and_owner(saved_view.id, owner).await.unwrap();
     assert!(found.is_none());
 }
 
 #[tokio::test]
-async fn test_delete_plan_wrong_owner_returns_false() {
+async fn test_delete_saved_view_wrong_owner_returns_false() {
     let r = setup().await;
     let owner = make_user(&r.users).await;
     let other = make_user(&r.users).await;
-    let plan = r.plans.create(owner, empty_plan("Plan")).await.unwrap();
+    let saved_view = r.saved_views.create(owner, empty_saved_view("Saved View")).await.unwrap();
 
-    let deleted = r.plans.delete(plan.id, other).await.unwrap();
+    let deleted = r.saved_views.delete(saved_view.id, other).await.unwrap();
     assert!(!deleted);
 }
 
 // ── Filter execution ──────────────────────────────────────────────────────────
 
 #[tokio::test]
-async fn test_find_tasks_for_plan_not_found_returns_none() {
+async fn test_find_tasks_for_saved_view_not_found_returns_none() {
     let r = setup().await;
     let owner = make_user(&r.users).await;
 
     let result = r
-        .plans
-        .find_tasks_for_plan(Uuid::new_v4(), owner)
+        .saved_views
+        .find_tasks_for_saved_view(Uuid::new_v4(), owner)
         .await
         .unwrap();
 
@@ -245,17 +247,16 @@ async fn test_find_tasks_for_plan_not_found_returns_none() {
 }
 
 #[tokio::test]
-async fn test_find_tasks_for_plan_empty_filters_returns_all_tasks() {
+async fn test_find_tasks_for_saved_view_empty_filters_returns_all_tasks() {
     let r = setup().await;
     let owner = make_user(&r.users).await;
 
     for title in ["Task 1", "Task 2", "Task 3"] {
         r.tasks
-            .create(CreateTask {
+            .create(r.author, CreateTask {
                 title: title.to_string(),
                 description: None,
                 project_id: None,
-                author: None,
                 assigned_to: None,
                 column_id: None,
             })
@@ -263,22 +264,22 @@ async fn test_find_tasks_for_plan_empty_filters_returns_all_tasks() {
             .unwrap();
     }
 
-    let plan = r
-        .plans
+    let saved_view = r
+        .saved_views
         .create(
             owner,
-            CreatePlan {
+            CreateSavedView {
                 name: "All Tasks".to_string(),
                 description: None,
-                filters: PlanFilters::default(),
+                filters: SavedViewFilters::default(),
             },
         )
         .await
         .unwrap();
 
     let tasks = r
-        .plans
-        .find_tasks_for_plan(plan.id, owner)
+        .saved_views
+        .find_tasks_for_saved_view(saved_view.id, owner)
         .await
         .unwrap()
         .unwrap();
@@ -287,42 +288,40 @@ async fn test_find_tasks_for_plan_empty_filters_returns_all_tasks() {
 }
 
 #[tokio::test]
-async fn test_find_tasks_for_plan_assigned_to_filter() {
+async fn test_find_tasks_for_saved_view_assigned_to_filter() {
     let r = setup().await;
     let owner = make_user(&r.users).await;
     let assignee = make_user(&r.users).await;
 
     r.tasks
-        .create(CreateTask {
+        .create(r.author, CreateTask {
             title: "Assigned".to_string(),
             description: None,
             project_id: None,
-            author: None,
             assigned_to: Some(assignee),
             column_id: None,
         })
         .await
         .unwrap();
     r.tasks
-        .create(CreateTask {
+        .create(r.author, CreateTask {
             title: "Unassigned".to_string(),
             description: None,
             project_id: None,
-            author: None,
             assigned_to: None,
             column_id: None,
         })
         .await
         .unwrap();
 
-    let plan = r
-        .plans
+    let saved_view = r
+        .saved_views
         .create(
             owner,
-            CreatePlan {
+            CreateSavedView {
                 name: "Assignee's tasks".to_string(),
                 description: None,
-                filters: PlanFilters {
+                filters: SavedViewFilters {
                     assigned_to: Some(vec![assignee]),
                     ..Default::default()
                 },
@@ -332,8 +331,8 @@ async fn test_find_tasks_for_plan_assigned_to_filter() {
         .unwrap();
 
     let tasks = r
-        .plans
-        .find_tasks_for_plan(plan.id, owner)
+        .saved_views
+        .find_tasks_for_saved_view(saved_view.id, owner)
         .await
         .unwrap()
         .unwrap();
@@ -343,7 +342,7 @@ async fn test_find_tasks_for_plan_assigned_to_filter() {
 }
 
 #[tokio::test]
-async fn test_find_tasks_for_plan_multiple_assignees() {
+async fn test_find_tasks_for_saved_view_multiple_assignees() {
     let r = setup().await;
     let owner = make_user(&r.users).await;
     let alice = make_user(&r.users).await;
@@ -351,11 +350,10 @@ async fn test_find_tasks_for_plan_multiple_assignees() {
 
     for (title, assignee) in [("Alice task", alice), ("Bob task", bob)] {
         r.tasks
-            .create(CreateTask {
+            .create(r.author, CreateTask {
                 title: title.to_string(),
                 description: None,
                 project_id: None,
-                author: None,
                 assigned_to: Some(assignee),
                 column_id: None,
             })
@@ -363,25 +361,24 @@ async fn test_find_tasks_for_plan_multiple_assignees() {
             .unwrap();
     }
     r.tasks
-        .create(CreateTask {
+        .create(r.author, CreateTask {
             title: "No one's task".to_string(),
             description: None,
             project_id: None,
-            author: None,
             assigned_to: None,
             column_id: None,
         })
         .await
         .unwrap();
 
-    let plan = r
-        .plans
+    let saved_view = r
+        .saved_views
         .create(
             owner,
-            CreatePlan {
+            CreateSavedView {
                 name: "Alice and Bob".to_string(),
                 description: None,
-                filters: PlanFilters {
+                filters: SavedViewFilters {
                     assigned_to: Some(vec![alice, bob]),
                     ..Default::default()
                 },
@@ -391,8 +388,8 @@ async fn test_find_tasks_for_plan_multiple_assignees() {
         .unwrap();
 
     let tasks = r
-        .plans
-        .find_tasks_for_plan(plan.id, owner)
+        .saved_views
+        .find_tasks_for_saved_view(saved_view.id, owner)
         .await
         .unwrap()
         .unwrap();
@@ -401,42 +398,40 @@ async fn test_find_tasks_for_plan_multiple_assignees() {
 }
 
 #[tokio::test]
-async fn test_find_tasks_for_plan_author_filter() {
+async fn test_find_tasks_for_saved_view_author_filter() {
     let r = setup().await;
     let owner = make_user(&r.users).await;
     let author = make_user(&r.users).await;
 
     r.tasks
-        .create(CreateTask {
+        .create(author, CreateTask {
             title: "By author".to_string(),
             description: None,
             project_id: None,
-            author: Some(author),
             assigned_to: None,
             column_id: None,
         })
         .await
         .unwrap();
     r.tasks
-        .create(CreateTask {
-            title: "No author".to_string(),
+        .create(r.author, CreateTask {
+            title: "By another user".to_string(),
             description: None,
             project_id: None,
-            author: None,
             assigned_to: None,
             column_id: None,
         })
         .await
         .unwrap();
 
-    let plan = r
-        .plans
+    let saved_view = r
+        .saved_views
         .create(
             owner,
-            CreatePlan {
+            CreateSavedView {
                 name: "Author's tasks".to_string(),
                 description: None,
-                filters: PlanFilters {
+                filters: SavedViewFilters {
                     author: Some(vec![author]),
                     ..Default::default()
                 },
@@ -446,8 +441,8 @@ async fn test_find_tasks_for_plan_author_filter() {
         .unwrap();
 
     let tasks = r
-        .plans
-        .find_tasks_for_plan(plan.id, owner)
+        .saved_views
+        .find_tasks_for_saved_view(saved_view.id, owner)
         .await
         .unwrap()
         .unwrap();
@@ -457,18 +452,17 @@ async fn test_find_tasks_for_plan_author_filter() {
 }
 
 #[tokio::test]
-async fn test_find_tasks_for_plan_date_filter() {
+async fn test_find_tasks_for_saved_view_date_filter() {
     let r = setup().await;
     let owner = make_user(&r.users).await;
 
     // Insert task, then capture its created_at for the filter
     let task = r
         .tasks
-        .create(CreateTask {
+        .create(r.author, CreateTask {
             title: "Old task".to_string(),
             description: None,
             project_id: None,
-            author: None,
             assigned_to: None,
             column_id: None,
         })
@@ -478,14 +472,14 @@ async fn test_find_tasks_for_plan_date_filter() {
     // created_before = task's own created_at excludes it; use a future time to include it
     let future = chrono::Utc::now() + chrono::Duration::hours(1);
 
-    let plan = r
-        .plans
+    let saved_view = r
+        .saved_views
         .create(
             owner,
-            CreatePlan {
+            CreateSavedView {
                 name: "Recent tasks".to_string(),
                 description: None,
-                filters: PlanFilters {
+                filters: SavedViewFilters {
                     created_after: Some(task.created_at - chrono::Duration::seconds(1)),
                     created_before: Some(future),
                     ..Default::default()
@@ -496,8 +490,8 @@ async fn test_find_tasks_for_plan_date_filter() {
         .unwrap();
 
     let tasks = r
-        .plans
-        .find_tasks_for_plan(plan.id, owner)
+        .saved_views
+        .find_tasks_for_saved_view(saved_view.id, owner)
         .await
         .unwrap()
         .unwrap();

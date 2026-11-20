@@ -3,75 +3,75 @@ use sqlx::types::Json;
 use uuid::Uuid;
 
 use cache::RedisCache;
-use models::plan::{CreatePlan, Plan, UpdatePlan};
+use models::saved_view::{CreateSavedView, SavedView, UpdateSavedView};
 use models::task::Task;
 
-pub struct PlanRepository {
+pub struct SavedViewRepository {
     pool: PgPool,
     cache: Option<RedisCache>,
 }
 
-impl PlanRepository {
+impl SavedViewRepository {
     pub fn new(pool: PgPool, cache: Option<RedisCache>) -> Self {
         Self { pool, cache }
     }
 
-    pub async fn find_all_by_owner(&self, owner_id: Uuid) -> Result<Vec<Plan>, sqlx::Error> {
-        let key = format!("plans:owner:{owner_id}");
+    pub async fn find_all_by_owner(&self, owner_id: Uuid) -> Result<Vec<SavedView>, sqlx::Error> {
+        let key = format!("saved_views:owner:{owner_id}");
 
         if let Some(cache) = &self.cache {
-            if let Some(plans) = cache.get::<Vec<Plan>>(&key).await {
-                return Ok(plans);
+            if let Some(saved_views) = cache.get::<Vec<SavedView>>(&key).await {
+                return Ok(saved_views);
             }
         }
 
-        let plans = sqlx::query_as::<_, Plan>(
-            "SELECT * FROM plans WHERE owner_id = $1 ORDER BY created_at DESC",
+        let saved_views = sqlx::query_as::<_, SavedView>(
+            "SELECT * FROM saved_views WHERE owner_id = $1 ORDER BY created_at DESC",
         )
         .bind(owner_id)
         .fetch_all(&self.pool)
         .await?;
 
         if let Some(cache) = &self.cache {
-            cache.set(&key, &plans).await;
+            cache.set(&key, &saved_views).await;
         }
 
-        Ok(plans)
+        Ok(saved_views)
     }
 
     pub async fn find_by_id_and_owner(
         &self,
         id: Uuid,
         owner_id: Uuid,
-    ) -> Result<Option<Plan>, sqlx::Error> {
-        let key = format!("plan:{id}");
+    ) -> Result<Option<SavedView>, sqlx::Error> {
+        let key = format!("saved_view:{id}");
 
         if let Some(cache) = &self.cache {
-            if let Some(plan) = cache.get::<Plan>(&key).await {
-                if plan.owner_id == owner_id {
-                    return Ok(Some(plan));
+            if let Some(saved_view) = cache.get::<SavedView>(&key).await {
+                if saved_view.owner_id == owner_id {
+                    return Ok(Some(saved_view));
                 }
             }
         }
 
-        let plan = sqlx::query_as::<_, Plan>(
-            "SELECT * FROM plans WHERE id = $1 AND owner_id = $2",
+        let saved_view = sqlx::query_as::<_, SavedView>(
+            "SELECT * FROM saved_views WHERE id = $1 AND owner_id = $2",
         )
         .bind(id)
         .bind(owner_id)
         .fetch_optional(&self.pool)
         .await?;
 
-        if let (Some(cache), Some(plan)) = (&self.cache, &plan) {
-            cache.set(&key, plan).await;
+        if let (Some(cache), Some(saved_view)) = (&self.cache, &saved_view) {
+            cache.set(&key, saved_view).await;
         }
 
-        Ok(plan)
+        Ok(saved_view)
     }
 
-    pub async fn create(&self, owner_id: Uuid, input: CreatePlan) -> Result<Plan, sqlx::Error> {
-        let plan = sqlx::query_as::<_, Plan>(
-            "INSERT INTO plans (name, description, owner_id, filters)
+    pub async fn create(&self, owner_id: Uuid, input: CreateSavedView) -> Result<SavedView, sqlx::Error> {
+        let saved_view = sqlx::query_as::<_, SavedView>(
+            "INSERT INTO saved_views (name, description, owner_id, filters)
              VALUES ($1, $2, $3, $4)
              RETURNING *",
         )
@@ -83,20 +83,20 @@ impl PlanRepository {
         .await?;
 
         if let Some(cache) = &self.cache {
-            cache.delete(&[&format!("plans:owner:{owner_id}")]).await;
+            cache.delete(&[&format!("saved_views:owner:{owner_id}")]).await;
         }
 
-        Ok(plan)
+        Ok(saved_view)
     }
 
     pub async fn update(
         &self,
         id: Uuid,
         owner_id: Uuid,
-        input: UpdatePlan,
-    ) -> Result<Option<Plan>, sqlx::Error> {
-        let plan = sqlx::query_as::<_, Plan>(
-            "UPDATE plans SET
+        input: UpdateSavedView,
+    ) -> Result<Option<SavedView>, sqlx::Error> {
+        let saved_view = sqlx::query_as::<_, SavedView>(
+            "UPDATE saved_views SET
                 name        = COALESCE($3, name),
                 description = COALESCE($4, description),
                 filters     = CASE WHEN $5 THEN $6 ELSE filters END,
@@ -116,17 +116,17 @@ impl PlanRepository {
         if let Some(cache) = &self.cache {
             cache
                 .delete(&[
-                    &format!("plan:{id}"),
-                    &format!("plans:owner:{owner_id}"),
+                    &format!("saved_view:{id}"),
+                    &format!("saved_views:owner:{owner_id}"),
                 ])
                 .await;
         }
 
-        Ok(plan)
+        Ok(saved_view)
     }
 
     pub async fn delete(&self, id: Uuid, owner_id: Uuid) -> Result<bool, sqlx::Error> {
-        let result = sqlx::query("DELETE FROM plans WHERE id = $1 AND owner_id = $2")
+        let result = sqlx::query("DELETE FROM saved_views WHERE id = $1 AND owner_id = $2")
             .bind(id)
             .bind(owner_id)
             .execute(&self.pool)
@@ -135,8 +135,8 @@ impl PlanRepository {
         if let Some(cache) = &self.cache {
             cache
                 .delete(&[
-                    &format!("plan:{id}"),
-                    &format!("plans:owner:{owner_id}"),
+                    &format!("saved_view:{id}"),
+                    &format!("saved_views:owner:{owner_id}"),
                 ])
                 .await;
         }
@@ -144,18 +144,18 @@ impl PlanRepository {
         Ok(result.rows_affected() > 0)
     }
 
-    pub async fn find_tasks_for_plan(
+    pub async fn find_tasks_for_saved_view(
         &self,
-        plan_id: Uuid,
+        saved_view_id: Uuid,
         owner_id: Uuid,
     ) -> Result<Option<Vec<Task>>, sqlx::Error> {
-        let Some(plan) = self.find_by_id_and_owner(plan_id, owner_id).await? else {
+        let Some(saved_view) = self.find_by_id_and_owner(saved_view_id, owner_id).await? else {
             return Ok(None);
         };
 
-        let filters = &plan.filters.0;
+        let filters = &saved_view.filters.0;
         let mut qb: QueryBuilder<Postgres> =
-            QueryBuilder::new("SELECT * FROM tasks WHERE 1=1");
+            QueryBuilder::new("SELECT * FROM tasks WHERE deleted_at IS NULL");
 
         if let Some(ids) = &filters.assigned_to {
             if !ids.is_empty() {

@@ -176,6 +176,7 @@ async fn test_delete_user_not_found() {
 #[tokio::test]
 async fn test_find_tasks() {
     let pool = common::setup_test_db().await;
+    let author = common::make_user(&pool).await;
     let user_repo = UserRepository::new(pool.clone(), None);
     let task_repo = TaskRepository::new(pool, None);
 
@@ -189,11 +190,10 @@ async fn test_find_tasks() {
 
     for title in ["Task 1", "Task 2"] {
         task_repo
-            .create(CreateTask {
+            .create(author, CreateTask {
                 title: title.to_string(),
                 description: None,
                 project_id: None,
-                author: None,
                 assigned_to: Some(user.id),
                 column_id: None,
             })

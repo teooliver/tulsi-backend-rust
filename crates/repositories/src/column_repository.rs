@@ -150,7 +150,7 @@ impl ColumnRepository {
         }
 
         let tasks = sqlx::query_as::<_, Task>(
-            "SELECT * FROM tasks WHERE column_id = $1 ORDER BY created_at ASC",
+            "SELECT * FROM tasks WHERE column_id = $1 AND deleted_at IS NULL ORDER BY created_at ASC",
         )
         .bind(column_id)
         .fetch_all(&self.pool)
@@ -170,7 +170,7 @@ impl ColumnRepository {
         column_id: Uuid,
     ) -> Result<Option<(Option<Uuid>, Task)>, sqlx::Error> {
         // Get the task's current column for cache invalidation and history
-        let old_task = sqlx::query_as::<_, Task>("SELECT * FROM tasks WHERE id = $1")
+        let old_task = sqlx::query_as::<_, Task>("SELECT * FROM tasks WHERE id = $1 AND deleted_at IS NULL")
             .bind(task_id)
             .fetch_optional(&self.pool)
             .await?;
@@ -178,7 +178,7 @@ impl ColumnRepository {
         let old_column_id = old_task.as_ref().and_then(|t| t.column_id);
 
         let task = sqlx::query_as::<_, Task>(
-            "UPDATE tasks SET column_id = $2, updated_at = NOW() WHERE id = $1 RETURNING *",
+            "UPDATE tasks SET column_id = $2, updated_at = NOW() WHERE id = $1 AND deleted_at IS NULL RETURNING *",
         )
         .bind(task_id)
         .bind(column_id)
