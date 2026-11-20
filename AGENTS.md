@@ -29,7 +29,7 @@ This project strictly follows the **Repository Pattern**, split across a Cargo
 
 ```
 Cargo.toml                           # Virtual workspace manifest + [workspace.dependencies]
-migrations/                          # Numbered SQL files (001_..014_); applied via sqlx::migrate!
+migrations/                          # Numbered SQL files (001_..015_); applied via sqlx::migrate!
 crates/
 ├── models/        src/lib.rs + *.rs # Domain types and DTOs (auth, user, project, board, column,
 │                                    # task, task_history, saved_view, label)
@@ -70,7 +70,7 @@ them; `server` is a thin binary over `api`.
 - A **Project** can have many **Tasks** (one-to-many). `project_id` on tasks is nullable; deleting a project sets it to `NULL`.
 - A **Task** optionally lives in a **Column** (Kanban placement) has an optional **Author** and an optional **Assignee** (both **Users**).
 - Deleting a **Task** marks it deleted (`deleted_at`) instead of removing the row, so its history survives. Every task query must filter `deleted_at IS NULL`; a deleted task behaves as not found everywhere except `GET /tasks/{id}/history` (see `docs/adr/0001-deleted-tasks-are-kept.md`).
-- **TaskHistory** records field changes per task — written by the task update handler and the move handler. Event types: `title_changed`, `description_changed`, `column_changed`, `assignment_changed`, `project_changed`. Creating or deleting a task, and label changes, are **not** recorded.
+- **TaskHistory** records a task's life — written by the task create, update, delete and move handlers. Event types: `task_created`, `task_deleted`, `title_changed`, `description_changed`, `column_changed`, `assignment_changed`, `project_changed` (snake_case in the database, PascalCase such as `TaskCreated` in JSON and the `?event_type=` filter). Label changes are **not** recorded.
 - A **Task** can have many **Labels** and vice versa via `task_labels` (many-to-many). Deleting a task or label cascades to the join rows.
 
 ### API Endpoints

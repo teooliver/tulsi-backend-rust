@@ -67,12 +67,28 @@ pub async fn get_task(
 pub async fn create_task(
     auth_user: AuthUser,
     State(repo): State<Arc<TaskRepository>>,
+    Extension(history_repo): Extension<Arc<TaskHistoryRepository>>,
     Json(input): Json<CreateTask>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    repo.create(auth_user.user_id, input)
+    let task = repo
+        .create(auth_user.user_id, input)
         .await
-        .map(|task| (StatusCode::CREATED, Json(task)))
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    if let Err(e) = history_repo
+        .record(
+            task.id,
+            auth_user.user_id,
+            TaskEventType::TaskCreated,
+            None,
+            Some(task.title.clone()),
+        )
+        .await
+    {
+        tracing::warn!("Failed to record task creation history: {e}");
+    }
+
+    Ok((StatusCode::CREATED, Json(task)))
 }
 
 #[utoipa::path(
@@ -203,12 +219,23 @@ async fn record_task_changes(
     tag = "Tasks"
 )]
 pub async fn delete_task(
+    auth_user: AuthUser,
     State(repo): State<Arc<TaskRepository>>,
+    Extension(history_repo): Extension<Arc<TaskHistoryRepository>>,
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    match repo.delete(id).await {
-        Ok(true) => Ok(StatusCode::NO_CONTENT),
-        Ok(false) => Err(StatusCode::NOT_FOUND),
-        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    let task = match repo.delete(id).await {
+        Ok(Some(task)) => task,
+        Ok(None) => return Err(StatusCode::NOT_FOUND),
+        Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
+    };
+
+    if let Err(e) = history_repo
+        .record(id, auth_user.user_id, TaskEventType::TaskDeleted, Some(task.title), None)
+        .await
+    {
+        tracing::warn!("Failed to record task deletion history: {e}");
     }
+
+    Ok(StatusCode::NO_CONTENT)
 }

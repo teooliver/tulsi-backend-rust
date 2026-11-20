@@ -107,33 +107,33 @@ impl TaskRepository {
     }
 
     /// Marks the task as deleted; the row and its history are kept (see
-    /// docs/adr/0001-deleted-tasks-are-kept.md). Returns false if the task
-    /// doesn't exist or is already deleted.
-    pub async fn delete(&self, id: Uuid) -> Result<bool, sqlx::Error> {
-        let deleted = sqlx::query_as::<_, (Option<Uuid>, Option<Uuid>, Option<Uuid>)>(
+    /// docs/adr/0001-deleted-tasks-are-kept.md). Returns the deleted task, or
+    /// `None` if it doesn't exist or is already deleted.
+    pub async fn delete(&self, id: Uuid) -> Result<Option<Task>, sqlx::Error> {
+        let task = sqlx::query_as::<_, Task>(
             "UPDATE tasks SET deleted_at = NOW(), updated_at = NOW()
              WHERE id = $1 AND deleted_at IS NULL
-             RETURNING column_id, project_id, assigned_to",
+             RETURNING *",
         )
         .bind(id)
         .fetch_optional(&self.pool)
         .await?;
 
-        if let (Some(cache), Some((column_id, project_id, assigned_to))) = (&self.cache, deleted) {
+        if let (Some(cache), Some(task)) = (&self.cache, &task) {
             let mut keys = vec![format!("task:{id}"), "tasks:all".to_string()];
-            if let Some(column_id) = column_id {
+            if let Some(column_id) = task.column_id {
                 keys.push(format!("column:{column_id}:tasks"));
             }
-            if let Some(project_id) = project_id {
+            if let Some(project_id) = task.project_id {
                 keys.push(format!("project:{project_id}:tasks"));
             }
-            if let Some(assigned_to) = assigned_to {
+            if let Some(assigned_to) = task.assigned_to {
                 keys.push(format!("user:{assigned_to}:tasks"));
             }
             let key_refs: Vec<&str> = keys.iter().map(|s| s.as_str()).collect();
             cache.delete(&key_refs).await;
         }
 
-        Ok(deleted.is_some())
+        Ok(task)
     }
 }

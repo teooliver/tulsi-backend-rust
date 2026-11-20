@@ -177,7 +177,7 @@ async fn test_delete_task() {
         .unwrap();
 
     let deleted = repo.delete(task.id).await.unwrap();
-    assert!(deleted);
+    assert_eq!(deleted.map(|t| t.id), Some(task.id));
 
     // Verify it's gone
     let found = repo.find_by_id(task.id).await.unwrap();
@@ -189,7 +189,7 @@ async fn test_delete_task_not_found() {
     let (repo, _) = setup().await;
 
     let deleted = repo.delete(Uuid::new_v4()).await.unwrap();
-    assert!(!deleted);
+    assert!(deleted.is_none());
 }
 
 #[tokio::test]

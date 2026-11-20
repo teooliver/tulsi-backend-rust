@@ -418,3 +418,67 @@ async fn deleted_task_labels_are_hidden_and_frozen() {
         .await
         .assert_status(StatusCode::NOT_FOUND);
 }
+
+#[tokio::test]
+async fn creating_a_task_records_task_created() {
+    let server = setup().await;
+    let me = current_user_id(&server).await;
+
+    let created: serde_json::Value = server
+        .post("/tasks")
+        .json(&json!({"title": "New"}))
+        .await
+        .json();
+    let id = created["id"].as_str().unwrap();
+
+    let history: Vec<serde_json::Value> =
+        server.get(&format!("/tasks/{id}/history")).await.json();
+    assert_eq!(history.len(), 1);
+    assert_eq!(history[0]["event_type"], "TaskCreated");
+    assert_eq!(history[0]["user_id"], me);
+    assert!(history[0]["old_value"].is_null());
+    assert_eq!(history[0]["new_value"], "New");
+}
+
+#[tokio::test]
+async fn deleting_a_task_records_task_deleted() {
+    let server = setup().await;
+    let me = current_user_id(&server).await;
+    let id = create_and_delete_task(&server, json!({"title": "Doomed"})).await;
+
+    let history: Vec<serde_json::Value> =
+        server.get(&format!("/tasks/{id}/history")).await.json();
+    let deleted: Vec<_> = history
+        .iter()
+        .filter(|e| e["event_type"] == "TaskDeleted")
+        .collect();
+    assert_eq!(deleted.len(), 1);
+    assert_eq!(deleted[0]["user_id"], me);
+    assert_eq!(deleted[0]["old_value"], "Doomed");
+    assert!(deleted[0]["new_value"].is_null());
+}
+
+#[tokio::test]
+async fn history_can_be_filtered_by_task_created() {
+    let server = setup().await;
+
+    let created: serde_json::Value = server
+        .post("/tasks")
+        .json(&json!({"title": "Before"}))
+        .await
+        .json();
+    let id = created["id"].as_str().unwrap();
+    server
+        .put(&format!("/tasks/{id}"))
+        .json(&json!({"title": "After"}))
+        .await
+        .assert_status_ok();
+
+    let response = server
+        .get(&format!("/tasks/{id}/history?event_type=TaskCreated"))
+        .await;
+    response.assert_status_ok();
+    let history: Vec<serde_json::Value> = response.json();
+    assert_eq!(history.len(), 1);
+    assert_eq!(history[0]["event_type"], "TaskCreated");
+}
