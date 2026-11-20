@@ -12,6 +12,7 @@ struct Repos {
     plans: PlanRepository,
     tasks: TaskRepository,
     users: UserRepository,
+    author: Uuid,
 }
 
 async fn setup() -> Repos {
@@ -20,6 +21,7 @@ async fn setup() -> Repos {
         plans: PlanRepository::new(pool.clone(), None),
         tasks: TaskRepository::new(pool.clone(), None),
         users: UserRepository::new(pool.clone(), None),
+        author: common::make_user(&pool).await,
     }
 }
 
@@ -251,11 +253,10 @@ async fn test_find_tasks_for_plan_empty_filters_returns_all_tasks() {
 
     for title in ["Task 1", "Task 2", "Task 3"] {
         r.tasks
-            .create(CreateTask {
+            .create(r.author, CreateTask {
                 title: title.to_string(),
                 description: None,
                 project_id: None,
-                author: None,
                 assigned_to: None,
                 column_id: None,
             })
@@ -293,22 +294,20 @@ async fn test_find_tasks_for_plan_assigned_to_filter() {
     let assignee = make_user(&r.users).await;
 
     r.tasks
-        .create(CreateTask {
+        .create(r.author, CreateTask {
             title: "Assigned".to_string(),
             description: None,
             project_id: None,
-            author: None,
             assigned_to: Some(assignee),
             column_id: None,
         })
         .await
         .unwrap();
     r.tasks
-        .create(CreateTask {
+        .create(r.author, CreateTask {
             title: "Unassigned".to_string(),
             description: None,
             project_id: None,
-            author: None,
             assigned_to: None,
             column_id: None,
         })
@@ -351,11 +350,10 @@ async fn test_find_tasks_for_plan_multiple_assignees() {
 
     for (title, assignee) in [("Alice task", alice), ("Bob task", bob)] {
         r.tasks
-            .create(CreateTask {
+            .create(r.author, CreateTask {
                 title: title.to_string(),
                 description: None,
                 project_id: None,
-                author: None,
                 assigned_to: Some(assignee),
                 column_id: None,
             })
@@ -363,11 +361,10 @@ async fn test_find_tasks_for_plan_multiple_assignees() {
             .unwrap();
     }
     r.tasks
-        .create(CreateTask {
+        .create(r.author, CreateTask {
             title: "No one's task".to_string(),
             description: None,
             project_id: None,
-            author: None,
             assigned_to: None,
             column_id: None,
         })
@@ -407,22 +404,20 @@ async fn test_find_tasks_for_plan_author_filter() {
     let author = make_user(&r.users).await;
 
     r.tasks
-        .create(CreateTask {
+        .create(author, CreateTask {
             title: "By author".to_string(),
             description: None,
             project_id: None,
-            author: Some(author),
             assigned_to: None,
             column_id: None,
         })
         .await
         .unwrap();
     r.tasks
-        .create(CreateTask {
-            title: "No author".to_string(),
+        .create(r.author, CreateTask {
+            title: "By another user".to_string(),
             description: None,
             project_id: None,
-            author: None,
             assigned_to: None,
             column_id: None,
         })
@@ -464,11 +459,10 @@ async fn test_find_tasks_for_plan_date_filter() {
     // Insert task, then capture its created_at for the filter
     let task = r
         .tasks
-        .create(CreateTask {
+        .create(r.author, CreateTask {
             title: "Old task".to_string(),
             description: None,
             project_id: None,
-            author: None,
             assigned_to: None,
             column_id: None,
         })

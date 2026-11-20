@@ -67,10 +67,9 @@ pub async fn get_task(
 pub async fn create_task(
     auth_user: AuthUser,
     State(repo): State<Arc<TaskRepository>>,
-    Json(mut input): Json<CreateTask>,
+    Json(input): Json<CreateTask>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    input.author = Some(auth_user.user_id);
-    repo.create(input)
+    repo.create(auth_user.user_id, input)
         .await
         .map(|task| (StatusCode::CREATED, Json(task)))
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)

@@ -4,25 +4,25 @@ use models::task::{CreateTask, UpdateTask};
 use repositories::task_repository::TaskRepository;
 use uuid::Uuid;
 
-async fn setup() -> TaskRepository {
+async fn setup() -> (TaskRepository, Uuid) {
     let pool = common::setup_test_db().await;
-    TaskRepository::new(pool, None)
+    let author = common::make_user(&pool).await;
+    (TaskRepository::new(pool, None), author)
 }
 
 #[tokio::test]
 async fn test_create_task() {
-    let repo = setup().await;
+    let (repo, author) = setup().await;
 
     let input = CreateTask {
         title: "Test task".to_string(),
         description: Some("A description".to_string()),
         project_id: None,
-        author: None,
         assigned_to: None,
         column_id: None,
     };
 
-    let task = repo.create(input).await.unwrap();
+    let task = repo.create(author, input).await.unwrap();
 
     assert_eq!(task.title, "Test task");
     assert_eq!(task.description, "A description");
@@ -33,18 +33,17 @@ async fn test_create_task() {
 
 #[tokio::test]
 async fn test_create_task_with_default_description() {
-    let repo = setup().await;
+    let (repo, author) = setup().await;
 
     let input = CreateTask {
         title: "No desc task".to_string(),
         description: None,
         project_id: None,
-        author: None,
         assigned_to: None,
         column_id: None,
     };
 
-    let task = repo.create(input).await.unwrap();
+    let task = repo.create(author, input).await.unwrap();
 
     assert_eq!(task.title, "No desc task");
     assert_eq!(task.description, "");
@@ -52,7 +51,7 @@ async fn test_create_task_with_default_description() {
 
 #[tokio::test]
 async fn test_find_all() {
-    let repo = setup().await;
+    let (repo, author) = setup().await;
 
     // Start empty
     let tasks = repo.find_all().await.unwrap();
@@ -60,11 +59,10 @@ async fn test_find_all() {
 
     // Create two tasks
     for title in ["First", "Second"] {
-        repo.create(CreateTask {
+        repo.create(author, CreateTask {
             title: title.to_string(),
             description: None,
             project_id: None,
-            author: None,
             assigned_to: None,
             column_id: None,
         })
@@ -81,14 +79,13 @@ async fn test_find_all() {
 
 #[tokio::test]
 async fn test_find_by_id() {
-    let repo = setup().await;
+    let (repo, author) = setup().await;
 
     let task = repo
-        .create(CreateTask {
+        .create(author, CreateTask {
             title: "Find me".to_string(),
             description: None,
             project_id: None,
-            author: None,
             assigned_to: None,
             column_id: None,
         })
@@ -102,7 +99,7 @@ async fn test_find_by_id() {
 
 #[tokio::test]
 async fn test_find_by_id_not_found() {
-    let repo = setup().await;
+    let (repo, _) = setup().await;
 
     let found = repo.find_by_id(Uuid::new_v4()).await.unwrap();
     assert!(found.is_none());
@@ -110,14 +107,13 @@ async fn test_find_by_id_not_found() {
 
 #[tokio::test]
 async fn test_update_task() {
-    let repo = setup().await;
+    let (repo, author) = setup().await;
 
     let task = repo
-        .create(CreateTask {
+        .create(author, CreateTask {
             title: "Original".to_string(),
             description: Some("Original desc".to_string()),
             project_id: None,
-            author: None,
             assigned_to: None,
             column_id: None,
         })
@@ -131,7 +127,6 @@ async fn test_update_task() {
                 title: Some("Updated".to_string()),
                 description: None,
                 project_id: None,
-                author: None,
                 assigned_to: None,
                 column_id: None,
             },
@@ -147,7 +142,7 @@ async fn test_update_task() {
 
 #[tokio::test]
 async fn test_update_task_not_found() {
-    let repo = setup().await;
+    let (repo, _) = setup().await;
 
     let result = repo
         .update(
@@ -156,7 +151,6 @@ async fn test_update_task_not_found() {
                 title: Some("Nope".to_string()),
                 description: None,
                 project_id: None,
-                author: None,
                 assigned_to: None,
                 column_id: None,
             },
@@ -169,14 +163,13 @@ async fn test_update_task_not_found() {
 
 #[tokio::test]
 async fn test_delete_task() {
-    let repo = setup().await;
+    let (repo, author) = setup().await;
 
     let task = repo
-        .create(CreateTask {
+        .create(author, CreateTask {
             title: "Delete me".to_string(),
             description: None,
             project_id: None,
-            author: None,
             assigned_to: None,
             column_id: None,
         })
@@ -193,7 +186,7 @@ async fn test_delete_task() {
 
 #[tokio::test]
 async fn test_delete_task_not_found() {
-    let repo = setup().await;
+    let (repo, _) = setup().await;
 
     let deleted = repo.delete(Uuid::new_v4()).await.unwrap();
     assert!(!deleted);
@@ -201,14 +194,13 @@ async fn test_delete_task_not_found() {
 
 #[tokio::test]
 async fn test_update_partial_fields() {
-    let repo = setup().await;
+    let (repo, author) = setup().await;
 
     let task = repo
-        .create(CreateTask {
+        .create(author, CreateTask {
             title: "Original title".to_string(),
             description: Some("Original desc".to_string()),
             project_id: None,
-            author: None,
             assigned_to: None,
             column_id: None,
         })
@@ -223,7 +215,6 @@ async fn test_update_partial_fields() {
                 title: None,
                 description: Some("New desc".to_string()),
                 project_id: None,
-                author: None,
                 assigned_to: None,
                 column_id: None,
             },

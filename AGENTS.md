@@ -29,7 +29,7 @@ This project strictly follows the **Repository Pattern**, split across a Cargo
 
 ```
 Cargo.toml                           # Virtual workspace manifest + [workspace.dependencies]
-migrations/                          # Numbered SQL files (001_..011_); applied via sqlx::migrate!
+migrations/                          # Numbered SQL files (001_..012_); applied via sqlx::migrate!
 crates/
 ├── models/        src/lib.rs + *.rs # Domain types and DTOs (auth, user, project, board, column,
 │                                    # task, task_history, plan, label)
@@ -60,7 +60,7 @@ them; `server` is a thin binary over `api`.
 | **Board** | `boards` | `id` (UUID), `name`, `description`, `created_at`, `updated_at` |
 | **Project** | `projects` | `id` (UUID), `name`, `description`, `created_at`, `updated_at` |
 | **Column** | `columns` | `id` (UUID), `name`, `position`, `board_id` (FK → `boards`), `created_at`, `updated_at` |
-| **Task** | `tasks` | `id` (UUID), `title`, `description`, `project_id` (nullable FK → `projects`), `column_id` (nullable FK → `columns`), `author` (nullable UUID, no FK), `assigned_to` (nullable FK → `users`), `created_at`, `updated_at` |
+| **Task** | `tasks` | `id` (UUID), `title`, `description`, `project_id` (nullable FK → `projects`), `column_id` (nullable FK → `columns`), `author` (nullable FK → `users`; set from the logged-in user on create, never changes), `assigned_to` (nullable FK → `users`), `created_at`, `updated_at` |
 | **TaskHistory** | `task_history` | `id`, `task_id` (FK → `tasks`), `user_id` (FK → `users`), `event_type` (`task_event_type` enum), `old_value` (nullable text), `new_value` (nullable text), `created_at` |
 | **Plan** | `plans` | Saved task-filter configurations owned by a user |
 | **Label** | `labels` | `id` (UUID), `name` (UNIQUE), `color` (nullable), `created_at`, `updated_at` |

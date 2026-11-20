@@ -55,6 +55,20 @@ pub async fn setup_test_db() -> PgPool {
     pool
 }
 
+/// Inserts a user directly and returns their id. Use it wherever a task needs
+/// an Author, since `tasks.author` is a foreign key to `users`.
+#[allow(dead_code)]
+pub async fn make_user(pool: &PgPool) -> Uuid {
+    let email = format!("author_{}@example.com", Uuid::new_v4());
+    let row: (Uuid,) =
+        sqlx::query_as("INSERT INTO users (name, email) VALUES ('Test Author', $1) RETURNING id")
+            .bind(email)
+            .fetch_one(pool)
+            .await
+            .expect("Failed to create test user");
+    row.0
+}
+
 /// Registers a new user and returns their JWT token. Each call uses a unique email.
 #[allow(dead_code)]
 pub async fn auth_token(server: &TestServer) -> String {

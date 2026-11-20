@@ -223,3 +223,47 @@ async fn create_task_invalid_json_returns_422() {
     // Axum returns 400 for malformed JSON
     response.assert_status(StatusCode::BAD_REQUEST);
 }
+
+async fn current_user_id(server: &TestServer) -> String {
+    let me: serde_json::Value = server.get("/auth/me").await.json();
+    me["id"].as_str().unwrap().to_string()
+}
+
+#[tokio::test]
+async fn create_task_sets_author_to_current_user() {
+    let server = setup().await;
+    let me = current_user_id(&server).await;
+
+    // A client-supplied author is ignored.
+    let response = server
+        .post("/tasks")
+        .json(&json!({"title": "My task", "author": Uuid::new_v4()}))
+        .await;
+
+    response.assert_status(StatusCode::CREATED);
+    let body: serde_json::Value = response.json();
+    assert_eq!(body["author"], me);
+}
+
+#[tokio::test]
+async fn update_task_cannot_change_author() {
+    let server = setup().await;
+    let me = current_user_id(&server).await;
+
+    let created: serde_json::Value = server
+        .post("/tasks")
+        .json(&json!({"title": "My task"}))
+        .await
+        .json();
+    let id = created["id"].as_str().unwrap();
+
+    let response = server
+        .put(&format!("/tasks/{id}"))
+        .json(&json!({"title": "Renamed", "author": Uuid::new_v4()}))
+        .await;
+
+    response.assert_status_ok();
+    let body: serde_json::Value = response.json();
+    assert_eq!(body["title"], "Renamed");
+    assert_eq!(body["author"], me);
+}

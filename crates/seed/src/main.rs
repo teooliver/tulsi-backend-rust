@@ -5,6 +5,22 @@ use rand::prelude::IndexedRandom;
 use sqlx::postgres::PgPoolOptions;
 use uuid::Uuid;
 
+// The seed user is the Author of every seeded task. Reused across runs because
+// emails are unique. It has no password, so it can't log in.
+async fn create_seed_user(pool: &sqlx::PgPool) -> Uuid {
+    let row: (Uuid,) = sqlx::query_as(
+        "INSERT INTO users (name, email) VALUES ('Seed User', 'seed@example.com')
+         ON CONFLICT (email) DO UPDATE SET name = EXCLUDED.name
+         RETURNING id",
+    )
+    .fetch_one(pool)
+    .await
+    .expect("Failed to create seed user");
+
+    println!("Using seed user: seed@example.com ({})", row.0);
+    row.0
+}
+
 async fn create_board(pool: &sqlx::PgPool) -> Uuid {
     let name: String = CompanyName().fake();
     let description: String = CatchPhrase().fake();
@@ -56,15 +72,16 @@ async fn create_project(pool: &sqlx::PgPool) -> Uuid {
     row.0
 }
 
-async fn create_task(pool: &sqlx::PgPool, project_id: Uuid, column_id: Uuid) {
+async fn create_task(pool: &sqlx::PgPool, author: Uuid, project_id: Uuid, column_id: Uuid) {
     let title: String = Sentence(2..5).fake();
     let description: String = Paragraph(1..3).fake();
 
     sqlx::query(
-        "INSERT INTO tasks (title, description, project_id, column_id) VALUES ($1, $2, $3, $4)",
+        "INSERT INTO tasks (title, description, author, project_id, column_id) VALUES ($1, $2, $3, $4, $5)",
     )
     .bind(&title)
     .bind(&description)
+    .bind(author)
     .bind(project_id)
     .bind(column_id)
     .execute(pool)
@@ -91,6 +108,8 @@ async fn main() {
     println!("Connected to database. Seeding data...\n");
 
     let mut rng = rand::rng();
+
+    let author = create_seed_user(&pool).await;
 
     // Create 2 boards with columns
     let board_1 = create_board(&pool).await;
@@ -131,13 +150,13 @@ async fn main() {
     for project_id in &projects_1 {
         for _ in 0..10 {
             let column_id = *columns_1.choose(&mut rng).unwrap();
-            create_task(&pool, *project_id, column_id).await;
+            create_task(&pool, author, *project_id, column_id).await;
         }
     }
     for project_id in &projects_2 {
         for _ in 0..10 {
             let column_id = *columns_2.choose(&mut rng).unwrap();
-            create_task(&pool, *project_id, column_id).await;
+            create_task(&pool, author, *project_id, column_id).await;
         }
     }
 
