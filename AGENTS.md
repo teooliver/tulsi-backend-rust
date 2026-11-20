@@ -29,10 +29,10 @@ This project strictly follows the **Repository Pattern**, split across a Cargo
 
 ```
 Cargo.toml                           # Virtual workspace manifest + [workspace.dependencies]
-migrations/                          # Numbered SQL files (001_..012_); applied via sqlx::migrate!
+migrations/                          # Numbered SQL files (001_..013_); applied via sqlx::migrate!
 crates/
 ├── models/        src/lib.rs + *.rs # Domain types and DTOs (auth, user, project, board, column,
-│                                    # task, task_history, plan, label)
+│                                    # task, task_history, saved_view, label)
 ├── auth/          src/lib.rs        # JWT issuance/verification, require_auth middleware, AuthUser
 ├── cache/         src/lib.rs        # RedisCache wrapper used by repositories
 ├── observability/ src/lib.rs        # tracing + OTLP init, /health and /metrics handlers
@@ -62,7 +62,7 @@ them; `server` is a thin binary over `api`.
 | **Column** | `columns` | `id` (UUID), `name`, `position`, `board_id` (FK → `boards`), `created_at`, `updated_at` |
 | **Task** | `tasks` | `id` (UUID), `title`, `description`, `project_id` (nullable FK → `projects`), `column_id` (nullable FK → `columns`), `author` (nullable FK → `users`; set from the logged-in user on create, never changes), `assigned_to` (nullable FK → `users`), `created_at`, `updated_at` |
 | **TaskHistory** | `task_history` | `id`, `task_id` (FK → `tasks`), `user_id` (FK → `users`), `event_type` (`task_event_type` enum), `old_value` (nullable text), `new_value` (nullable text), `created_at` |
-| **Plan** | `plans` | Saved task-filter configurations owned by a user |
+| **SavedView** | `saved_views` | `id`, `name`, `description`, `owner_id` (FK → `users`), `filters` (JSONB), `created_at`, `updated_at` — saved task filters owned by a user |
 | **Label** | `labels` | `id` (UUID), `name` (UNIQUE), `color` (nullable), `created_at`, `updated_at` |
 | **TaskLabel** | `task_labels` | `task_id` (FK → `tasks`), `label_id` (FK → `labels`) — many-to-many join |
 
@@ -100,8 +100,8 @@ Protected (require `Authorization: Bearer <jwt>`):
 | GET / PUT / DELETE | `/boards/{board_id}/columns/{column_id}` | Column read / update / delete |
 | GET | `/boards/{board_id}/columns/{column_id}/tasks` | List tasks in a column |
 | PUT | `/tasks/{task_id}/move` | Move task to a column (body: `{ "column_id": ... }`) |
-| GET / POST / GET / PUT / DELETE | `/plans`, `/plans/{id}` | Plan CRUD |
-| POST | `/plans/{id}/execute` | Execute a saved plan and return matching tasks |
+| GET / POST / GET / PUT / DELETE | `/saved-views`, `/saved-views/{id}` | Saved View CRUD (scoped to the owner) |
+| GET | `/saved-views/{id}/tasks` | Execute a Saved View and return matching tasks |
 | GET / POST / GET / PUT / DELETE | `/labels`, `/labels/{id}` | Label CRUD |
 | GET / POST / DELETE | `/tasks/{task_id}/labels[/{label_id}]` | Task ↔ label associations |
 

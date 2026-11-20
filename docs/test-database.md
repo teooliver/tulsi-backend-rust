@@ -31,7 +31,7 @@ identity sequences before running:
 
 ```rust
 sqlx::raw_sql(
-    "TRUNCATE tasks, columns, projects, boards, users, plans, labels RESTART IDENTITY CASCADE",
+    "TRUNCATE tasks, columns, projects, boards, users, saved_views, labels RESTART IDENTITY CASCADE",
 )
 ```
 

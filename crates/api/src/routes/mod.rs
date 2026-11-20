@@ -2,7 +2,7 @@ pub mod auth_routes;
 pub mod board_routes;
 pub mod column_routes;
 pub mod label_routes;
-pub mod plan_routes;
+pub mod saved_view_routes;
 pub mod project_routes;
 pub mod task_routes;
 pub mod user_routes;

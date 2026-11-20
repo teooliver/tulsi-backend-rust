@@ -6,7 +6,7 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, ToSchema)]
-pub struct PlanFilters {
+pub struct SavedViewFilters {
     pub assigned_to: Option<Vec<Uuid>>,
     pub author: Option<Vec<Uuid>>,
     pub project_id: Option<Vec<Uuid>>,
@@ -17,29 +17,29 @@ pub struct PlanFilters {
 }
 
 #[derive(Debug, Serialize, Deserialize, FromRow)]
-pub struct Plan {
+pub struct SavedView {
     pub id: Uuid,
     pub name: String,
     pub description: String,
     pub owner_id: Uuid,
-    pub filters: Json<PlanFilters>,
+    pub filters: Json<SavedViewFilters>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
 
 #[derive(Debug, Serialize, ToSchema)]
-pub struct PlanResponse {
+pub struct SavedViewResponse {
     pub id: Uuid,
     pub name: String,
     pub description: String,
     pub owner_id: Uuid,
-    pub filters: PlanFilters,
+    pub filters: SavedViewFilters,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
 
-impl From<Plan> for PlanResponse {
-    fn from(p: Plan) -> Self {
+impl From<SavedView> for SavedViewResponse {
+    fn from(p: SavedView) -> Self {
         Self {
             id: p.id,
             name: p.name,
@@ -53,15 +53,15 @@ impl From<Plan> for PlanResponse {
 }
 
 #[derive(Debug, Deserialize, ToSchema)]
-pub struct CreatePlan {
+pub struct CreateSavedView {
     pub name: String,
     pub description: Option<String>,
-    pub filters: PlanFilters,
+    pub filters: SavedViewFilters,
 }
 
 #[derive(Debug, Deserialize, ToSchema)]
-pub struct UpdatePlan {
+pub struct UpdateSavedView {
     pub name: Option<String>,
     pub description: Option<String>,
-    pub filters: Option<PlanFilters>,
+    pub filters: Option<SavedViewFilters>,
 }
