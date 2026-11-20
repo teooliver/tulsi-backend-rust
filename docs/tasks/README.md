@@ -4,8 +4,7 @@ Each file is a self-contained task. Do them in this order (later ones assume ear
 
 | # | Task | Depends on |
 |---|------|------------|
-| 04 | [Keep Deleted Tasks instead of removing them](./04-keep-deleted-tasks.md) | — |
-| 05 | [Record Task created and deleted History Events](./05-record-task-created-and-deleted-events.md) | 04 |
+| 05 | [Record Task created and deleted History Events](./05-record-task-created-and-deleted-events.md) | 04 (done) |
 
 Rules that apply to every task (from `AGENTS.md`):
 

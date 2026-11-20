@@ -29,7 +29,7 @@ This project strictly follows the **Repository Pattern**, split across a Cargo
 
 ```
 Cargo.toml                           # Virtual workspace manifest + [workspace.dependencies]
-migrations/                          # Numbered SQL files (001_..013_); applied via sqlx::migrate!
+migrations/                          # Numbered SQL files (001_..014_); applied via sqlx::migrate!
 crates/
 ├── models/        src/lib.rs + *.rs # Domain types and DTOs (auth, user, project, board, column,
 │                                    # task, task_history, saved_view, label)
@@ -60,7 +60,7 @@ them; `server` is a thin binary over `api`.
 | **Board** | `boards` | `id` (UUID), `name`, `description`, `created_at`, `updated_at` |
 | **Project** | `projects` | `id` (UUID), `name`, `description`, `created_at`, `updated_at` |
 | **Column** | `columns` | `id` (UUID), `name`, `position`, `board_id` (FK → `boards`), `created_at`, `updated_at` |
-| **Task** | `tasks` | `id` (UUID), `title`, `description`, `project_id` (nullable FK → `projects`), `column_id` (nullable FK → `columns`), `author` (nullable FK → `users`; set from the logged-in user on create, never changes), `assigned_to` (nullable FK → `users`), `created_at`, `updated_at` |
+| **Task** | `tasks` | `id` (UUID), `title`, `description`, `project_id` (nullable FK → `projects`), `column_id` (nullable FK → `columns`), `author` (nullable FK → `users`; set from the logged-in user on create, never changes), `assigned_to` (nullable FK → `users`), `deleted_at` (nullable; set when the task is deleted), `created_at`, `updated_at` |
 | **TaskHistory** | `task_history` | `id`, `task_id` (FK → `tasks`), `user_id` (FK → `users`), `event_type` (`task_event_type` enum), `old_value` (nullable text), `new_value` (nullable text), `created_at` |
 | **SavedView** | `saved_views` | `id`, `name`, `description`, `owner_id` (FK → `users`), `filters` (JSONB), `created_at`, `updated_at` — saved task filters owned by a user |
 | **Label** | `labels` | `id` (UUID), `name` (UNIQUE), `color` (nullable), `created_at`, `updated_at` |
@@ -69,6 +69,7 @@ them; `server` is a thin binary over `api`.
 - A **Board** has many **Columns**. A **Task** is on a Board only through its Column; **Projects** are not linked to Boards.
 - A **Project** can have many **Tasks** (one-to-many). `project_id` on tasks is nullable; deleting a project sets it to `NULL`.
 - A **Task** optionally lives in a **Column** (Kanban placement) has an optional **Author** and an optional **Assignee** (both **Users**).
+- Deleting a **Task** marks it deleted (`deleted_at`) instead of removing the row, so its history survives. Every task query must filter `deleted_at IS NULL`; a deleted task behaves as not found everywhere except `GET /tasks/{id}/history` (see `docs/adr/0001-deleted-tasks-are-kept.md`).
 - **TaskHistory** records field changes per task — written by the task update handler and the move handler. Event types: `title_changed`, `description_changed`, `column_changed`, `assignment_changed`, `project_changed`. Creating or deleting a task, and label changes, are **not** recorded.
 - A **Task** can have many **Labels** and vice versa via `task_labels` (many-to-many). Deleting a task or label cascades to the join rows.
 

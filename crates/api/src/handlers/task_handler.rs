@@ -196,7 +196,7 @@ async fn record_task_changes(
     path = "/tasks/{id}",
     params(("id" = Uuid, Path, description = "Task ID")),
     responses(
-        (status = 204, description = "Task deleted"),
+        (status = 204, description = "Task marked as deleted; its history is kept"),
         (status = 404, description = "Task not found"),
         (status = 500, description = "Internal server error")
     ),

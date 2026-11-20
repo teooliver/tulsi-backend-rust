@@ -123,7 +123,7 @@ impl ProjectRepository {
         }
 
         let tasks = sqlx::query_as::<_, Task>(
-            "SELECT * FROM tasks WHERE project_id = $1 ORDER BY created_at DESC",
+            "SELECT * FROM tasks WHERE project_id = $1 AND deleted_at IS NULL ORDER BY created_at DESC",
         )
         .bind(project_id)
         .fetch_all(&self.pool)

@@ -22,7 +22,7 @@ impl TaskRepository {
         }
 
         let tasks =
-            sqlx::query_as::<_, Task>("SELECT * FROM tasks ORDER BY created_at DESC")
+            sqlx::query_as::<_, Task>("SELECT * FROM tasks WHERE deleted_at IS NULL ORDER BY created_at DESC")
                 .fetch_all(&self.pool)
                 .await?;
 
@@ -42,7 +42,7 @@ impl TaskRepository {
             }
         }
 
-        let task = sqlx::query_as::<_, Task>("SELECT * FROM tasks WHERE id = $1")
+        let task = sqlx::query_as::<_, Task>("SELECT * FROM tasks WHERE id = $1 AND deleted_at IS NULL")
             .bind(id)
             .fetch_optional(&self.pool)
             .await?;
@@ -83,7 +83,7 @@ impl TaskRepository {
                 assigned_to = CASE WHEN $6 THEN $7 ELSE assigned_to END,
                 column_id = CASE WHEN $8 THEN $9 ELSE column_id END,
                 updated_at = NOW()
-            WHERE id = $1
+            WHERE id = $1 AND deleted_at IS NULL
             RETURNING *",
         )
         .bind(id)
@@ -106,17 +106,34 @@ impl TaskRepository {
         Ok(task)
     }
 
+    /// Marks the task as deleted; the row and its history are kept (see
+    /// docs/adr/0001-deleted-tasks-are-kept.md). Returns false if the task
+    /// doesn't exist or is already deleted.
     pub async fn delete(&self, id: Uuid) -> Result<bool, sqlx::Error> {
-        let result = sqlx::query("DELETE FROM tasks WHERE id = $1")
-            .bind(id)
-            .execute(&self.pool)
-            .await?;
+        let deleted = sqlx::query_as::<_, (Option<Uuid>, Option<Uuid>, Option<Uuid>)>(
+            "UPDATE tasks SET deleted_at = NOW(), updated_at = NOW()
+             WHERE id = $1 AND deleted_at IS NULL
+             RETURNING column_id, project_id, assigned_to",
+        )
+        .bind(id)
+        .fetch_optional(&self.pool)
+        .await?;
 
-        if let Some(cache) = &self.cache {
-            let key = format!("task:{id}");
-            cache.delete(&[&key, "tasks:all"]).await;
+        if let (Some(cache), Some((column_id, project_id, assigned_to))) = (&self.cache, deleted) {
+            let mut keys = vec![format!("task:{id}"), "tasks:all".to_string()];
+            if let Some(column_id) = column_id {
+                keys.push(format!("column:{column_id}:tasks"));
+            }
+            if let Some(project_id) = project_id {
+                keys.push(format!("project:{project_id}:tasks"));
+            }
+            if let Some(assigned_to) = assigned_to {
+                keys.push(format!("user:{assigned_to}:tasks"));
+            }
+            let key_refs: Vec<&str> = keys.iter().map(|s| s.as_str()).collect();
+            cache.delete(&key_refs).await;
         }
 
-        Ok(result.rows_affected() > 0)
+        Ok(deleted.is_some())
     }
 }

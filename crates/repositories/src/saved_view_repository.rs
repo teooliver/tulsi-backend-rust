@@ -155,7 +155,7 @@ impl SavedViewRepository {
 
         let filters = &saved_view.filters.0;
         let mut qb: QueryBuilder<Postgres> =
-            QueryBuilder::new("SELECT * FROM tasks WHERE 1=1");
+            QueryBuilder::new("SELECT * FROM tasks WHERE deleted_at IS NULL");
 
         if let Some(ids) = &filters.assigned_to {
             if !ids.is_empty() {
