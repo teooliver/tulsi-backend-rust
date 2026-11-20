@@ -29,7 +29,7 @@ This project strictly follows the **Repository Pattern**, split across a Cargo
 
 ```
 Cargo.toml                           # Virtual workspace manifest + [workspace.dependencies]
-migrations/                          # Numbered SQL files (001_..010_); applied via sqlx::migrate!
+migrations/                          # Numbered SQL files (001_..011_); applied via sqlx::migrate!
 crates/
 ├── models/        src/lib.rs + *.rs # Domain types and DTOs (auth, user, project, board, column,
 │                                    # task, task_history, plan, label)
@@ -58,7 +58,7 @@ them; `server` is a thin binary over `api`.
 |--------|-------|------------|
 | **User** | `users` | `id` (UUID), `name`, `email` (UNIQUE), `password_hash`, `created_at`, `updated_at` |
 | **Board** | `boards` | `id` (UUID), `name`, `description`, `created_at`, `updated_at` |
-| **Project** | `projects` | `id` (UUID), `name`, `description`, `board_id` (nullable FK → `boards`), `created_at`, `updated_at` |
+| **Project** | `projects` | `id` (UUID), `name`, `description`, `created_at`, `updated_at` |
 | **Column** | `columns` | `id` (UUID), `name`, `position`, `board_id` (FK → `boards`), `created_at`, `updated_at` |
 | **Task** | `tasks` | `id` (UUID), `title`, `description`, `project_id` (nullable FK → `projects`), `column_id` (nullable FK → `columns`), `author` (nullable UUID, no FK), `assigned_to` (nullable FK → `users`), `created_at`, `updated_at` |
 | **TaskHistory** | `task_history` | `id`, `task_id` (FK → `tasks`), `user_id` (FK → `users`), `event_type` (`task_event_type` enum), `old_value` (nullable text), `new_value` (nullable text), `created_at` |
@@ -66,7 +66,7 @@ them; `server` is a thin binary over `api`.
 | **Label** | `labels` | `id` (UUID), `name` (UNIQUE), `color` (nullable), `created_at`, `updated_at` |
 | **TaskLabel** | `task_labels` | `task_id` (FK → `tasks`), `label_id` (FK → `labels`) — many-to-many join |
 
-- A **Board** has many **Projects** and many **Columns**.
+- A **Board** has many **Columns**. A **Task** is on a Board only through its Column; **Projects** are not linked to Boards.
 - A **Project** can have many **Tasks** (one-to-many). `project_id` on tasks is nullable; deleting a project sets it to `NULL`.
 - A **Task** optionally lives in a **Column** (Kanban placement) has an optional **Author** and an optional **Assignee** (both **Users**).
 - **TaskHistory** records field changes per task — written by the task update handler and the move handler. Event types: `title_changed`, `description_changed`, `column_changed`, `assignment_changed`, `project_changed`. Creating or deleting a task, and label changes, are **not** recorded.
@@ -94,7 +94,6 @@ Protected (require `Authorization: Bearer <jwt>`):
 | GET / POST / GET / PUT / DELETE | `/projects`, `/projects/{id}` | Project CRUD |
 | GET | `/projects/{id}/tasks` | List tasks for a project |
 | GET / POST / GET / PUT / DELETE | `/boards`, `/boards/{id}` | Board CRUD |
-| GET | `/boards/{id}/projects` | List projects on a board |
 | GET / POST / GET / PUT / DELETE | `/tasks`, `/tasks/{id}` | Task CRUD |
 | GET | `/tasks/{id}/history` | Task change history |
 | GET / POST | `/boards/{board_id}/columns` | List / create columns for a board |

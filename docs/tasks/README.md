@@ -4,7 +4,6 @@ Each file is a self-contained task. Do them in this order (later ones assume ear
 
 | # | Task | Depends on |
 |---|------|------------|
-| 01 | [Remove the Project → Board link](./01-remove-project-board-link.md) | — |
 | 02 | [Author is the Task's creator](./02-author-is-the-creator.md) | — |
 | 03 | [Rename Plan to Saved View](./03-rename-plan-to-saved-view.md) | — |
 | 04 | [Keep Deleted Tasks instead of removing them](./04-keep-deleted-tasks.md) | — |

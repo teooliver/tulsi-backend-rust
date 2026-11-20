@@ -25,7 +25,6 @@ async fn test_create_project() {
 
     assert_eq!(project.name, "My Project");
     assert_eq!(project.description, "A project");
-    assert!(project.board_id.is_none());
 }
 
 #[tokio::test]

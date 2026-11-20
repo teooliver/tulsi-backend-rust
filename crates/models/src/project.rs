@@ -9,7 +9,6 @@ pub struct Project {
     pub id: Uuid,
     pub name: String,
     pub description: String,
-    pub board_id: Option<Uuid>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }

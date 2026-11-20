@@ -9,7 +9,6 @@ use axum::{
 use uuid::Uuid;
 
 use models::board::{Board, CreateBoard, UpdateBoard};
-use models::project::Project;
 use repositories::board_repository::BoardRepository;
 
 #[utoipa::path(
@@ -114,32 +113,6 @@ pub async fn delete_board(
     match repo.delete(id).await {
         Ok(true) => Ok(StatusCode::NO_CONTENT),
         Ok(false) => Err(StatusCode::NOT_FOUND),
-        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
-    }
-}
-
-#[utoipa::path(
-    get,
-    path = "/boards/{id}/projects",
-    params(("id" = Uuid, Path, description = "Board ID")),
-    responses(
-        (status = 200, description = "List board's projects", body = Vec<Project>),
-        (status = 404, description = "Board not found"),
-        (status = 500, description = "Internal server error")
-    ),
-    tag = "Boards"
-)]
-pub async fn list_board_projects(
-    State(repo): State<Arc<BoardRepository>>,
-    Path(id): Path<Uuid>,
-) -> Result<impl IntoResponse, StatusCode> {
-    match repo.find_by_id(id).await {
-        Ok(Some(_)) => repo
-            .find_projects(id)
-            .await
-            .map(|projects| Json(projects))
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR),
-        Ok(None) => Err(StatusCode::NOT_FOUND),
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
     }
 }

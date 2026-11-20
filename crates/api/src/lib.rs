@@ -71,7 +71,6 @@ impl utoipa::Modify for SecurityAddon {
         handlers::board_handler::create_board,
         handlers::board_handler::update_board,
         handlers::board_handler::delete_board,
-        handlers::board_handler::list_board_projects,
         handlers::task_handler::list_tasks,
         handlers::task_handler::get_task,
         handlers::task_handler::create_task,

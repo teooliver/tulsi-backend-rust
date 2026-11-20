@@ -37,18 +37,17 @@ async fn create_column(pool: &sqlx::PgPool, board_id: Uuid, name: &str, position
     row.0
 }
 
-async fn create_project(pool: &sqlx::PgPool, board_id: Uuid) -> Uuid {
+async fn create_project(pool: &sqlx::PgPool) -> Uuid {
     let adj: String = BsAdj().fake();
     let noun: String = BsNoun().fake();
     let name = format!("{} {}", adj, noun);
     let description: String = Sentence(3..6).fake();
 
     let row: (Uuid,) = sqlx::query_as(
-        "INSERT INTO projects (name, description, board_id) VALUES ($1, $2, $3) RETURNING id",
+        "INSERT INTO projects (name, description) VALUES ($1, $2) RETURNING id",
     )
     .bind(&name)
     .bind(&description)
-    .bind(board_id)
     .fetch_one(pool)
     .await
     .expect("Failed to create project");
@@ -111,19 +110,19 @@ async fn main() {
         columns_2.push(col_id);
     }
 
-    // Create 6 projects: 4 for board_1, 2 for board_2
+    // Create 6 projects: tasks of the first 4 go on board_1's columns, the last 2 on board_2's
     let mut projects_1 = Vec::new();
     let mut projects_2 = Vec::new();
 
-    println!("\nProjects for Board 1:");
+    println!("\nProjects with tasks on Board 1:");
     for _ in 0..4 {
-        let project_id = create_project(&pool, board_1).await;
+        let project_id = create_project(&pool).await;
         projects_1.push(project_id);
     }
 
-    println!("\nProjects for Board 2:");
+    println!("\nProjects with tasks on Board 2:");
     for _ in 0..2 {
-        let project_id = create_project(&pool, board_2).await;
+        let project_id = create_project(&pool).await;
         projects_2.push(project_id);
     }
 
