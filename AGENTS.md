@@ -184,7 +184,7 @@ cargo test --workspace
 
 ## Guidelines for AI Agents
 
-- **Use the domain vocabulary in `../../GLOSSARY.md`** (the Tulsi Home Repo). Name things with its canonical terms in code, docs and responses, and avoid the synonyms it lists.
+- **Use the domain vocabulary in `../../tulsi-home/GLOSSARY.md`** (the Tulsi Home Repo, checked out beside this repo's parent folder; if you cloned this repo alone, read it at https://github.com/teooliver/tulsi-home/blob/main/GLOSSARY.md). Name things with its canonical terms in code, docs and responses, and avoid the synonyms it lists.
 
 - **Always follow the Repository Pattern.** Never put SQL queries in handlers or route files.
 - **Do not introduce ORMs.** Use SQLx directly.
