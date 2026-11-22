@@ -167,7 +167,8 @@ pub async fn attach_label_to_task(
     Path((task_id, label_id)): Path<(Uuid, Uuid)>,
 ) -> Result<impl IntoResponse, StatusCode> {
     match repo.attach_to_task(task_id, label_id).await {
-        Ok(_) => Ok(StatusCode::NO_CONTENT),
+        Ok(Some(_)) => Ok(StatusCode::NO_CONTENT),
+        Ok(None) => Err(StatusCode::NOT_FOUND),
         Err(sqlx::Error::Database(db)) if db.code().as_deref() == Some("23503") => {
             Err(StatusCode::NOT_FOUND)
         }

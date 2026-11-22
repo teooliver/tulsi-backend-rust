@@ -240,6 +240,7 @@ async fn test_delete_column_not_found() {
 #[tokio::test]
 async fn test_find_tasks_in_column() {
     let (repo, board_repo, pool) = setup().await;
+    let author = common::make_user(&pool).await;
     let task_repo = TaskRepository::new(pool, None);
     let board_id = create_test_board(&board_repo).await;
 
@@ -256,11 +257,10 @@ async fn test_find_tasks_in_column() {
 
     for title in ["Task 1", "Task 2"] {
         task_repo
-            .create(CreateTask {
+            .create(author, CreateTask {
                 title: title.to_string(),
                 description: None,
                 project_id: None,
-                author: None,
                 assigned_to: None,
                 column_id: Some(column.id),
             })
@@ -275,6 +275,7 @@ async fn test_find_tasks_in_column() {
 #[tokio::test]
 async fn test_move_task_to_column() {
     let (repo, board_repo, pool) = setup().await;
+    let author = common::make_user(&pool).await;
     let task_repo = TaskRepository::new(pool, None);
     let board_id = create_test_board(&board_repo).await;
 
@@ -301,11 +302,10 @@ async fn test_move_task_to_column() {
         .unwrap();
 
     let task = task_repo
-        .create(CreateTask {
+        .create(author, CreateTask {
             title: "Move me".to_string(),
             description: None,
             project_id: None,
-            author: None,
             assigned_to: None,
             column_id: Some(col_todo.id),
         })

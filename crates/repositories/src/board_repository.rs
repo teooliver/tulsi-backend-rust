@@ -3,7 +3,6 @@ use uuid::Uuid;
 
 use cache::RedisCache;
 use models::board::{Board, CreateBoard, UpdateBoard};
-use models::project::Project;
 
 pub struct BoardRepository {
     pool: PgPool,
@@ -106,33 +105,9 @@ impl BoardRepository {
 
         if let Some(cache) = &self.cache {
             let key = format!("board:{id}");
-            let projects_key = format!("board:{id}:projects");
-            cache.delete(&[&key, "boards:all", &projects_key]).await;
+            cache.delete(&[&key, "boards:all"]).await;
         }
 
         Ok(result.rows_affected() > 0)
-    }
-
-    pub async fn find_projects(&self, board_id: Uuid) -> Result<Vec<Project>, sqlx::Error> {
-        let key = format!("board:{board_id}:projects");
-
-        if let Some(cache) = &self.cache {
-            if let Some(projects) = cache.get::<Vec<Project>>(&key).await {
-                return Ok(projects);
-            }
-        }
-
-        let projects = sqlx::query_as::<_, Project>(
-            "SELECT * FROM projects WHERE board_id = $1 ORDER BY created_at DESC",
-        )
-        .bind(board_id)
-        .fetch_all(&self.pool)
-        .await?;
-
-        if let Some(cache) = &self.cache {
-            cache.set(&key, &projects).await;
-        }
-
-        Ok(projects)
     }
 }

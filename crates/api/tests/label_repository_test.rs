@@ -9,6 +9,7 @@ use uuid::Uuid;
 struct Repos {
     labels: LabelRepository,
     tasks: TaskRepository,
+    author: Uuid,
 }
 
 async fn setup() -> Repos {
@@ -16,6 +17,7 @@ async fn setup() -> Repos {
     Repos {
         labels: LabelRepository::new(pool.clone(), None),
         tasks: TaskRepository::new(pool.clone(), None),
+        author: common::make_user(&pool).await,
     }
 }
 
@@ -23,13 +25,12 @@ fn label(name: &str) -> CreateLabel {
     CreateLabel { name: name.to_string(), color: None }
 }
 
-async fn make_task(tasks: &TaskRepository, title: &str) -> Uuid {
-    tasks
-        .create(CreateTask {
+async fn make_task(r: &Repos, title: &str) -> Uuid {
+    r.tasks
+        .create(r.author, CreateTask {
             title: title.to_string(),
             description: None,
             project_id: None,
-            author: None,
             assigned_to: None,
             column_id: None,
         })
@@ -199,11 +200,11 @@ async fn test_delete_label_not_found() {
 #[tokio::test]
 async fn test_attach_label_to_task() {
     let r = setup().await;
-    let task_id = make_task(&r.tasks, "Do it").await;
+    let task_id = make_task(&r, "Do it").await;
     let label_id = r.labels.create(label("urgent")).await.unwrap().id;
 
     let inserted = r.labels.attach_to_task(task_id, label_id).await.unwrap();
-    assert!(inserted);
+    assert_eq!(inserted, Some(true));
 
     let labels = r.labels.find_labels_for_task(task_id).await.unwrap();
     assert_eq!(labels.len(), 1);
@@ -213,14 +214,14 @@ async fn test_attach_label_to_task() {
 #[tokio::test]
 async fn test_attach_label_idempotent() {
     let r = setup().await;
-    let task_id = make_task(&r.tasks, "Do it").await;
+    let task_id = make_task(&r, "Do it").await;
     let label_id = r.labels.create(label("urgent")).await.unwrap().id;
 
     let first = r.labels.attach_to_task(task_id, label_id).await.unwrap();
     let second = r.labels.attach_to_task(task_id, label_id).await.unwrap();
 
-    assert!(first);
-    assert!(!second); // no row inserted the second time
+    assert_eq!(first, Some(true));
+    assert_eq!(second, Some(false)); // no row inserted the second time
     let labels = r.labels.find_labels_for_task(task_id).await.unwrap();
     assert_eq!(labels.len(), 1);
 }
@@ -228,7 +229,7 @@ async fn test_attach_label_idempotent() {
 #[tokio::test]
 async fn test_detach_label_from_task() {
     let r = setup().await;
-    let task_id = make_task(&r.tasks, "Do it").await;
+    let task_id = make_task(&r, "Do it").await;
     let label_id = r.labels.create(label("urgent")).await.unwrap().id;
     r.labels.attach_to_task(task_id, label_id).await.unwrap();
 
@@ -242,7 +243,7 @@ async fn test_detach_label_from_task() {
 #[tokio::test]
 async fn test_detach_label_not_attached_returns_false() {
     let r = setup().await;
-    let task_id = make_task(&r.tasks, "Do it").await;
+    let task_id = make_task(&r, "Do it").await;
     let label_id = r.labels.create(label("urgent")).await.unwrap().id;
 
     let detached = r.labels.detach_from_task(task_id, label_id).await.unwrap();
@@ -253,7 +254,7 @@ async fn test_detach_label_not_attached_returns_false() {
 #[tokio::test]
 async fn test_find_labels_for_task_empty() {
     let r = setup().await;
-    let task_id = make_task(&r.tasks, "Lone task").await;
+    let task_id = make_task(&r, "Lone task").await;
 
     let labels = r.labels.find_labels_for_task(task_id).await.unwrap();
 
@@ -263,7 +264,7 @@ async fn test_find_labels_for_task_empty() {
 #[tokio::test]
 async fn test_find_labels_for_task_ordered_by_name() {
     let r = setup().await;
-    let task_id = make_task(&r.tasks, "T").await;
+    let task_id = make_task(&r, "T").await;
     let zeta = r.labels.create(label("zeta")).await.unwrap().id;
     let alpha = r.labels.create(label("alpha")).await.unwrap().id;
     let mu = r.labels.create(label("mu")).await.unwrap().id;
@@ -281,28 +282,19 @@ async fn test_find_labels_for_task_ordered_by_name() {
 }
 
 #[tokio::test]
-async fn test_attach_nonexistent_task_returns_fk_error() {
+async fn test_attach_nonexistent_task_returns_none() {
     let r = setup().await;
     let label_id = r.labels.create(label("urgent")).await.unwrap().id;
 
-    let err = r
-        .labels
-        .attach_to_task(Uuid::new_v4(), label_id)
-        .await
-        .unwrap_err();
+    let result = r.labels.attach_to_task(Uuid::new_v4(), label_id).await.unwrap();
 
-    match err {
-        sqlx::Error::Database(db) => {
-            assert_eq!(db.code().as_deref(), Some("23503"));
-        }
-        other => panic!("expected FK violation, got {other:?}"),
-    }
+    assert_eq!(result, None);
 }
 
 #[tokio::test]
 async fn test_attach_nonexistent_label_returns_fk_error() {
     let r = setup().await;
-    let task_id = make_task(&r.tasks, "T").await;
+    let task_id = make_task(&r, "T").await;
 
     let err = r
         .labels
@@ -319,24 +311,27 @@ async fn test_attach_nonexistent_label_returns_fk_error() {
 }
 
 #[tokio::test]
-async fn test_deleting_task_cascades_attachments() {
+async fn test_deleted_task_labels_are_hidden_and_frozen() {
     let r = setup().await;
-    let task_id = make_task(&r.tasks, "T").await;
+    let task_id = make_task(&r, "T").await;
     let label_id = r.labels.create(label("urgent")).await.unwrap().id;
+    let other_id = r.labels.create(label("later")).await.unwrap().id;
     r.labels.attach_to_task(task_id, label_id).await.unwrap();
 
     r.tasks.delete(task_id).await.unwrap();
 
-    // Label still exists, but the association is gone.
+    // The label itself is untouched; the deleted task's labels are hidden and
+    // can't be changed.
     assert!(r.labels.find_by_id(label_id).await.unwrap().is_some());
-    let attached = r.labels.find_labels_for_task(task_id).await.unwrap();
-    assert!(attached.is_empty());
+    assert!(r.labels.find_labels_for_task(task_id).await.unwrap().is_empty());
+    assert_eq!(r.labels.attach_to_task(task_id, other_id).await.unwrap(), None);
+    assert!(!r.labels.detach_from_task(task_id, label_id).await.unwrap());
 }
 
 #[tokio::test]
 async fn test_deleting_label_cascades_attachments() {
     let r = setup().await;
-    let task_id = make_task(&r.tasks, "T").await;
+    let task_id = make_task(&r, "T").await;
     let label_id = r.labels.create(label("urgent")).await.unwrap().id;
     r.labels.attach_to_task(task_id, label_id).await.unwrap();
 

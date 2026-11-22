@@ -7,6 +7,8 @@ use uuid::Uuid;
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type, ToSchema)]
 #[sqlx(type_name = "task_event_type", rename_all = "snake_case")]
 pub enum TaskEventType {
+    TaskCreated,
+    TaskDeleted,
     TitleChanged,
     DescriptionChanged,
     ColumnChanged,

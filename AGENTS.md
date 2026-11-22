@@ -29,10 +29,10 @@ This project strictly follows the **Repository Pattern**, split across a Cargo
 
 ```
 Cargo.toml                           # Virtual workspace manifest + [workspace.dependencies]
-migrations/                          # Numbered SQL files (001_..010_); applied via sqlx::migrate!
+migrations/                          # Numbered SQL files (001_..015_); applied via sqlx::migrate!
 crates/
 ├── models/        src/lib.rs + *.rs # Domain types and DTOs (auth, user, project, board, column,
-│                                    # task, task_history, plan, label)
+│                                    # task, task_history, saved_view, label)
 ├── auth/          src/lib.rs        # JWT issuance/verification, require_auth middleware, AuthUser
 ├── cache/         src/lib.rs        # RedisCache wrapper used by repositories
 ├── observability/ src/lib.rs        # tracing + OTLP init, /health and /metrics handlers
@@ -58,18 +58,19 @@ them; `server` is a thin binary over `api`.
 |--------|-------|------------|
 | **User** | `users` | `id` (UUID), `name`, `email` (UNIQUE), `password_hash`, `created_at`, `updated_at` |
 | **Board** | `boards` | `id` (UUID), `name`, `description`, `created_at`, `updated_at` |
-| **Project** | `projects` | `id` (UUID), `name`, `description`, `board_id` (nullable FK → `boards`), `created_at`, `updated_at` |
+| **Project** | `projects` | `id` (UUID), `name`, `description`, `created_at`, `updated_at` |
 | **Column** | `columns` | `id` (UUID), `name`, `position`, `board_id` (FK → `boards`), `created_at`, `updated_at` |
-| **Task** | `tasks` | `id` (UUID), `title`, `description`, `project_id` (nullable FK → `projects`), `column_id` (nullable FK → `columns`), `author` (nullable UUID → `users`), `created_at`, `updated_at` |
-| **TaskHistory** | `task_history` | `id`, `task_id` (FK → `tasks`), `user_id` (FK → `users`), `event_type`, `payload` (JSONB), `created_at` |
-| **Plan** | `plans` | Saved task-filter configurations owned by a user |
+| **Task** | `tasks` | `id` (UUID), `title`, `description`, `project_id` (nullable FK → `projects`), `column_id` (nullable FK → `columns`), `author` (nullable FK → `users`; set from the logged-in user on create, never changes), `assigned_to` (nullable FK → `users`), `deleted_at` (nullable; set when the task is deleted), `created_at`, `updated_at` |
+| **TaskHistory** | `task_history` | `id`, `task_id` (FK → `tasks`), `user_id` (FK → `users`), `event_type` (`task_event_type` enum), `old_value` (nullable text), `new_value` (nullable text), `created_at` |
+| **SavedView** | `saved_views` | `id`, `name`, `description`, `owner_id` (FK → `users`), `filters` (JSONB), `created_at`, `updated_at` — saved task filters owned by a user |
 | **Label** | `labels` | `id` (UUID), `name` (UNIQUE), `color` (nullable), `created_at`, `updated_at` |
 | **TaskLabel** | `task_labels` | `task_id` (FK → `tasks`), `label_id` (FK → `labels`) — many-to-many join |
 
-- A **Board** has many **Projects** and many **Columns**.
+- A **Board** has many **Columns**. A **Task** is on a Board only through its Column; **Projects** are not linked to Boards.
 - A **Project** can have many **Tasks** (one-to-many). `project_id` on tasks is nullable; deleting a project sets it to `NULL`.
-- A **Task** optionally lives in a **Column** (Kanban placement) and is authored by a **User**.
-- **TaskHistory** records change events per task — written by handlers on create/update/delete and column moves.
+- A **Task** optionally lives in a **Column** (Kanban placement) has an optional **Author** and an optional **Assignee** (both **Users**).
+- Deleting a **Task** marks it deleted (`deleted_at`) instead of removing the row, so its history survives. Every task query must filter `deleted_at IS NULL`; a deleted task behaves as not found everywhere except `GET /tasks/{id}/history` (see `docs/adr/0001-deleted-tasks-are-kept.md`).
+- **TaskHistory** records a task's life — written by the task create, update, delete and move handlers. Event types: `task_created`, `task_deleted`, `title_changed`, `description_changed`, `column_changed`, `assignment_changed`, `project_changed` (snake_case in the database, PascalCase such as `TaskCreated` in JSON and the `?event_type=` filter). Label changes are **not** recorded.
 - A **Task** can have many **Labels** and vice versa via `task_labels` (many-to-many). Deleting a task or label cascades to the join rows.
 
 ### API Endpoints
@@ -90,19 +91,18 @@ Protected (require `Authorization: Bearer <jwt>`):
 | Method | Path | Description |
 |--------|------|-------------|
 | GET / POST / GET / PUT / DELETE | `/users`, `/users/{id}` | User CRUD |
-| GET | `/users/{id}/tasks` | List tasks authored by a user |
+| GET | `/users/{id}/tasks` | List tasks assigned to a user |
 | GET / POST / GET / PUT / DELETE | `/projects`, `/projects/{id}` | Project CRUD |
 | GET | `/projects/{id}/tasks` | List tasks for a project |
 | GET / POST / GET / PUT / DELETE | `/boards`, `/boards/{id}` | Board CRUD |
-| GET | `/boards/{id}/projects` | List projects on a board |
 | GET / POST / GET / PUT / DELETE | `/tasks`, `/tasks/{id}` | Task CRUD |
 | GET | `/tasks/{id}/history` | Task change history |
-| GET | `/boards/{board_id}/columns` | List columns for a board |
-| POST / GET / PUT / DELETE | `/columns`, `/columns/{id}` | Column CRUD |
-| GET | `/columns/{id}/tasks` | List tasks in a column |
-| POST | `/columns/{id}/tasks/{task_id}` | Move task to column |
-| GET / POST / GET / PUT / DELETE | `/plans`, `/plans/{id}` | Plan CRUD |
-| POST | `/plans/{id}/execute` | Execute a saved plan and return matching tasks |
+| GET / POST | `/boards/{board_id}/columns` | List / create columns for a board |
+| GET / PUT / DELETE | `/boards/{board_id}/columns/{column_id}` | Column read / update / delete |
+| GET | `/boards/{board_id}/columns/{column_id}/tasks` | List tasks in a column |
+| PUT | `/tasks/{task_id}/move` | Move task to a column (body: `{ "column_id": ... }`) |
+| GET / POST / GET / PUT / DELETE | `/saved-views`, `/saved-views/{id}` | Saved View CRUD (scoped to the owner) |
+| GET | `/saved-views/{id}/tasks` | Execute a Saved View and return matching tasks |
 | GET / POST / GET / PUT / DELETE | `/labels`, `/labels/{id}` | Label CRUD |
 | GET / POST / DELETE | `/tasks/{task_id}/labels[/{label_id}]` | Task ↔ label associations |
 
@@ -183,6 +183,8 @@ cargo test --workspace
 ```
 
 ## Guidelines for AI Agents
+
+- **Use the domain vocabulary in `GLOSSARY.md`.** Name things with its canonical terms in code, docs and responses, and avoid the synonyms it lists.
 
 - **Always follow the Repository Pattern.** Never put SQL queries in handlers or route files.
 - **Do not introduce ORMs.** Use SQLx directly.

@@ -152,7 +152,7 @@ impl UserRepository {
         }
 
         let tasks = sqlx::query_as::<_, Task>(
-            "SELECT * FROM tasks WHERE assigned_to = $1 ORDER BY created_at DESC",
+            "SELECT * FROM tasks WHERE assigned_to = $1 AND deleted_at IS NULL ORDER BY created_at DESC",
         )
         .bind(user_id)
         .fetch_all(&self.pool)

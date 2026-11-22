@@ -16,7 +16,7 @@ use observability::{health_handler, metrics_handler};
 use repositories::board_repository::BoardRepository;
 use repositories::column_repository::ColumnRepository;
 use repositories::label_repository::LabelRepository;
-use repositories::plan_repository::PlanRepository;
+use repositories::saved_view_repository::SavedViewRepository;
 use repositories::project_repository::ProjectRepository;
 use repositories::task_history_repository::TaskHistoryRepository;
 use repositories::task_repository::TaskRepository;
@@ -25,7 +25,7 @@ use routes::auth_routes::{auth_protected_routes, auth_routes};
 use routes::board_routes::board_routes;
 use routes::column_routes::column_routes;
 use routes::label_routes::label_routes;
-use routes::plan_routes::plan_routes;
+use routes::saved_view_routes::saved_view_routes;
 use routes::project_routes::project_routes;
 use routes::task_routes::task_routes;
 use routes::user_routes::user_routes;
@@ -71,18 +71,17 @@ impl utoipa::Modify for SecurityAddon {
         handlers::board_handler::create_board,
         handlers::board_handler::update_board,
         handlers::board_handler::delete_board,
-        handlers::board_handler::list_board_projects,
         handlers::task_handler::list_tasks,
         handlers::task_handler::get_task,
         handlers::task_handler::create_task,
         handlers::task_handler::update_task,
         handlers::task_handler::delete_task,
-        handlers::plan_handler::list_plans,
-        handlers::plan_handler::get_plan,
-        handlers::plan_handler::create_plan,
-        handlers::plan_handler::update_plan,
-        handlers::plan_handler::delete_plan,
-        handlers::plan_handler::execute_plan,
+        handlers::saved_view_handler::list_saved_views,
+        handlers::saved_view_handler::get_saved_view,
+        handlers::saved_view_handler::create_saved_view,
+        handlers::saved_view_handler::update_saved_view,
+        handlers::saved_view_handler::delete_saved_view,
+        handlers::saved_view_handler::execute_saved_view,
         handlers::column_handler::list_board_columns,
         handlers::column_handler::get_column,
         handlers::column_handler::create_column,
@@ -116,10 +115,10 @@ impl utoipa::Modify for SecurityAddon {
         models::task::Task,
         models::task::CreateTask,
         models::task::UpdateTask,
-        models::plan::PlanResponse,
-        models::plan::PlanFilters,
-        models::plan::CreatePlan,
-        models::plan::UpdatePlan,
+        models::saved_view::SavedViewResponse,
+        models::saved_view::SavedViewFilters,
+        models::saved_view::CreateSavedView,
+        models::saved_view::UpdateSavedView,
         models::column::Column,
         models::column::CreateColumn,
         models::column::UpdateColumn,
@@ -138,7 +137,7 @@ impl utoipa::Modify for SecurityAddon {
         (name = "Tasks", description = "Task management"),
         (name = "Columns", description = "Column management"),
         (name = "Task History", description = "Task change history"),
-        (name = "Plans", description = "Saved task filter configurations"),
+        (name = "Saved Views", description = "Saved task filters"),
         (name = "Labels", description = "Label management and task associations"),
     ),
     modifiers(&SecurityAddon),
@@ -162,7 +161,7 @@ pub fn build_app(pool: PgPool, cache: Option<RedisCache>, prometheus_handle: Pro
     let project_repo = Arc::new(ProjectRepository::new(pool.clone(), cache.clone()));
     let board_repo = Arc::new(BoardRepository::new(pool.clone(), cache.clone()));
     let column_repo = Arc::new(ColumnRepository::new(pool.clone(), cache.clone()));
-    let plan_repo = Arc::new(PlanRepository::new(pool.clone(), cache.clone()));
+    let saved_view_repo = Arc::new(SavedViewRepository::new(pool.clone(), cache.clone()));
     let label_repo = Arc::new(LabelRepository::new(pool.clone(), cache.clone()));
     let user_repo = Arc::new(UserRepository::new(pool.clone(), cache));
 
@@ -177,7 +176,7 @@ pub fn build_app(pool: PgPool, cache: Option<RedisCache>, prometheus_handle: Pro
         .merge(project_routes(project_repo))
         .merge(board_routes(board_repo))
         .merge(column_routes(column_repo))
-        .merge(plan_routes(plan_repo))
+        .merge(saved_view_routes(saved_view_repo))
         .merge(label_routes(label_repo))
         .merge(user_routes(user_repo.clone()))
         .merge(auth_protected_routes(user_repo))

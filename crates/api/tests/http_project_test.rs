@@ -235,7 +235,8 @@ async fn list_project_tasks_not_found_returns_404() {
 
 #[tokio::test]
 async fn list_project_tasks_returns_assigned_tasks() {
-    let server = setup().await;
+    // Creating tasks needs a real user: the Author is a foreign key to users.
+    let server = common::authed_server().await;
 
     let project: serde_json::Value = server
         .post("/projects")

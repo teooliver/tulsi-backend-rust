@@ -2,7 +2,7 @@ pub mod auth;
 pub mod board;
 pub mod column;
 pub mod label;
-pub mod plan;
+pub mod saved_view;
 pub mod project;
 pub mod task;
 pub mod task_history;

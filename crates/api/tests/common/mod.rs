@@ -44,15 +44,29 @@ pub async fn setup_test_db() -> PgPool {
         .await
         .expect("Failed to run migrations");
 
-    // Clean data before each test (CASCADE handles dependent tables like plans, task_history, task_labels)
+    // Clean data before each test (CASCADE handles dependent tables like saved_views, task_history, task_labels)
     sqlx::raw_sql(
-        "TRUNCATE tasks, columns, projects, boards, users, plans, labels RESTART IDENTITY CASCADE",
+        "TRUNCATE tasks, columns, projects, boards, users, saved_views, labels RESTART IDENTITY CASCADE",
     )
     .execute(&pool)
     .await
     .expect("Failed to clean up test database");
 
     pool
+}
+
+/// Inserts a user directly and returns their id. Use it wherever a task needs
+/// an Author, since `tasks.author` is a foreign key to `users`.
+#[allow(dead_code)]
+pub async fn make_user(pool: &PgPool) -> Uuid {
+    let email = format!("author_{}@example.com", Uuid::new_v4());
+    let row: (Uuid,) =
+        sqlx::query_as("INSERT INTO users (name, email) VALUES ('Test Author', $1) RETURNING id")
+            .bind(email)
+            .fetch_one(pool)
+            .await
+            .expect("Failed to create test user");
+    row.0
 }
 
 /// Registers a new user and returns their JWT token. Each call uses a unique email.
@@ -82,7 +96,7 @@ pub fn mint_token(user_id: Uuid) -> String {
 
 /// Sets up a TestServer with a default Authorization header backed by a real
 /// registered user. Use for tests touching handlers that record FK references
-/// to the auth user (task_history, plans).
+/// to the auth user (task_history, saved_views).
 #[allow(dead_code)]
 pub async fn authed_server() -> TestServer {
     let mut server = TestServer::new(setup_test_app().await);
