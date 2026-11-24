@@ -1,7 +1,7 @@
 mod common;
 
 use models::task::CreateTask;
-use models::user::{CreateUser, UpdateUser};
+use models::user::UpdateUser;
 use repositories::task_repository::TaskRepository;
 use repositories::user_repository::UserRepository;
 use uuid::Uuid;
@@ -16,10 +16,7 @@ async fn test_create_user() {
     let repo = setup().await;
 
     let user = repo
-        .create(CreateUser {
-            name: "Alice".to_string(),
-            email: "alice@example.com".to_string(),
-        })
+        .create("Alice", "alice@example.com", "")
         .await
         .unwrap();
 
@@ -31,18 +28,12 @@ async fn test_create_user() {
 async fn test_create_user_duplicate_email_fails() {
     let repo = setup().await;
 
-    repo.create(CreateUser {
-        name: "Alice".to_string(),
-        email: "dupe@example.com".to_string(),
-    })
+    repo.create("Alice", "dupe@example.com", "")
     .await
     .unwrap();
 
     let result = repo
-        .create(CreateUser {
-            name: "Bob".to_string(),
-            email: "dupe@example.com".to_string(),
-        })
+        .create("Bob", "dupe@example.com", "")
         .await;
 
     assert!(result.is_err());
@@ -55,16 +46,10 @@ async fn test_find_all() {
     let users = repo.find_all().await.unwrap();
     assert!(users.is_empty());
 
-    repo.create(CreateUser {
-        name: "Alice".to_string(),
-        email: "alice_all@example.com".to_string(),
-    })
+    repo.create("Alice", "alice_all@example.com", "")
     .await
     .unwrap();
-    repo.create(CreateUser {
-        name: "Bob".to_string(),
-        email: "bob_all@example.com".to_string(),
-    })
+    repo.create("Bob", "bob_all@example.com", "")
     .await
     .unwrap();
 
@@ -79,10 +64,7 @@ async fn test_find_by_id() {
     let repo = setup().await;
 
     let user = repo
-        .create(CreateUser {
-            name: "Alice".to_string(),
-            email: "alice_find@example.com".to_string(),
-        })
+        .create("Alice", "alice_find@example.com", "")
         .await
         .unwrap();
 
@@ -104,10 +86,7 @@ async fn test_update_user() {
     let repo = setup().await;
 
     let user = repo
-        .create(CreateUser {
-            name: "Alice".to_string(),
-            email: "alice_update@example.com".to_string(),
-        })
+        .create("Alice", "alice_update@example.com", "")
         .await
         .unwrap();
 
@@ -151,10 +130,7 @@ async fn test_delete_user() {
     let repo = setup().await;
 
     let user = repo
-        .create(CreateUser {
-            name: "Alice".to_string(),
-            email: "alice_delete@example.com".to_string(),
-        })
+        .create("Alice", "alice_delete@example.com", "")
         .await
         .unwrap();
 
@@ -181,10 +157,7 @@ async fn test_find_tasks() {
     let task_repo = TaskRepository::new(pool, None);
 
     let user = user_repo
-        .create(CreateUser {
-            name: "Alice".to_string(),
-            email: "alice_tasks@example.com".to_string(),
-        })
+        .create("Alice", "alice_tasks@example.com", "")
         .await
         .unwrap();
 

@@ -2,7 +2,6 @@ mod common;
 
 use models::saved_view::{CreateSavedView, SavedViewFilters, UpdateSavedView};
 use models::task::CreateTask;
-use models::user::CreateUser;
 use repositories::saved_view_repository::SavedViewRepository;
 use repositories::task_repository::TaskRepository;
 use repositories::user_repository::UserRepository;
@@ -27,10 +26,7 @@ async fn setup() -> Repos {
 
 async fn make_user(users: &UserRepository) -> Uuid {
     users
-        .create(CreateUser {
-            name: "Test User".to_string(),
-            email: format!("user_{}@test.com", Uuid::new_v4()),
-        })
+        .create("Test User", &format!("user_{}@test.com", Uuid::new_v4()), "")
         .await
         .unwrap()
         .id

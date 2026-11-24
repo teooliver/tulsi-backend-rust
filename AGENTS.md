@@ -90,7 +90,7 @@ Protected (require `Authorization: Bearer <jwt>`):
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET / POST / GET / PUT / DELETE | `/users`, `/users/{id}` | User CRUD |
+| GET / GET / PUT / DELETE | `/users`, `/users/{id}` | List / read / update / delete users (no create — users are created only via `POST /auth/register`) |
 | GET | `/users/{id}/tasks` | List tasks assigned to a user |
 | GET / POST / GET / PUT / DELETE | `/projects`, `/projects/{id}` | Project CRUD |
 | GET | `/projects/{id}/tasks` | List tasks for a project |

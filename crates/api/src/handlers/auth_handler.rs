@@ -69,7 +69,7 @@ pub async fn register(
     })?;
 
     let user = repo
-        .create_with_password(&input.name, &input.email, &password_hash)
+        .create(&input.name, &input.email, &password_hash)
         .await
         .map_err(|_| {
             (

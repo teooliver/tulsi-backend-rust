@@ -89,24 +89,6 @@ async fn create_task_with_nonexistent_user_returns_500() {
 }
 
 #[tokio::test]
-async fn duplicate_user_email_returns_500() {
-    let server = setup().await;
-
-    server
-        .post("/users")
-        .json(&json!({"name": "Alice", "email": "dup@test.com"}))
-        .await;
-
-    let response = server
-        .post("/users")
-        .json(&json!({"name": "Bob", "email": "dup@test.com"}))
-        .await;
-
-    // Unique constraint violation currently mapped to 500
-    response.assert_status(StatusCode::INTERNAL_SERVER_ERROR);
-}
-
-#[tokio::test]
 async fn wrong_type_for_field_returns_422() {
     let server = setup().await;
 

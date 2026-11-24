@@ -140,11 +140,7 @@ async fn cascade_delete_board_removes_columns() {
 async fn delete_user_nullifies_task_assignment() {
     let server = setup().await;
 
-    let user: serde_json::Value = server
-        .post("/users")
-        .json(&json!({"name": "Alice", "email": "alice@test.com"}))
-        .await
-        .json();
+    let user = common::register_user(&server, "Alice", "alice@test.com").await;
     let user_id = user["id"].as_str().unwrap();
 
     let task: serde_json::Value = server
@@ -205,11 +201,7 @@ async fn task_with_full_associations() {
     let server = setup().await;
 
     // Create all associated entities
-    let user: serde_json::Value = server
-        .post("/users")
-        .json(&json!({"name": "Alice", "email": "alice@test.com"}))
-        .await
-        .json();
+    let user = common::register_user(&server, "Alice", "alice@test.com").await;
     let user_id = user["id"].as_str().unwrap();
 
     let project: serde_json::Value = server

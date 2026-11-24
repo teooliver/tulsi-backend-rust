@@ -3,7 +3,7 @@ use uuid::Uuid;
 
 use cache::RedisCache;
 use models::task::Task;
-use models::user::{CreateUser, UpdateUser, User};
+use models::user::{UpdateUser, User};
 
 pub struct UserRepository {
     pool: PgPool,
@@ -55,22 +55,6 @@ impl UserRepository {
         Ok(user)
     }
 
-    pub async fn create(&self, input: CreateUser) -> Result<User, sqlx::Error> {
-        let user = sqlx::query_as::<_, User>(
-            "INSERT INTO users (name, email, password_hash) VALUES ($1, $2, '') RETURNING *",
-        )
-        .bind(&input.name)
-        .bind(&input.email)
-        .fetch_one(&self.pool)
-        .await?;
-
-        if let Some(cache) = &self.cache {
-            cache.delete(&["users:all"]).await;
-        }
-
-        Ok(user)
-    }
-
     pub async fn find_by_email(&self, email: &str) -> Result<Option<User>, sqlx::Error> {
         sqlx::query_as::<_, User>("SELECT * FROM users WHERE email = $1")
             .bind(email)
@@ -78,7 +62,7 @@ impl UserRepository {
             .await
     }
 
-    pub async fn create_with_password(
+    pub async fn create(
         &self,
         name: &str,
         email: &str,
