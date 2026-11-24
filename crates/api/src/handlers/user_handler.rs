@@ -8,7 +8,7 @@ use axum::{
 };
 use uuid::Uuid;
 
-use models::user::{CreateUser, UpdateUser, User};
+use models::user::{UpdateUser, User};
 use models::task::Task;
 use repositories::user_repository::UserRepository;
 
@@ -50,26 +50,6 @@ pub async fn get_user(
         Ok(None) => Err(StatusCode::NOT_FOUND),
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
     }
-}
-
-#[utoipa::path(
-    post,
-    path = "/users",
-    request_body = CreateUser,
-    responses(
-        (status = 201, description = "User created", body = User),
-        (status = 500, description = "Internal server error")
-    ),
-    tag = "Users"
-)]
-pub async fn create_user(
-    State(repo): State<Arc<UserRepository>>,
-    Json(input): Json<CreateUser>,
-) -> Result<impl IntoResponse, StatusCode> {
-    repo.create(input)
-        .await
-        .map(|user| (StatusCode::CREATED, Json(user)))
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
 
 #[utoipa::path(

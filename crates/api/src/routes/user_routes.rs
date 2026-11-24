@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use axum::{
     Router,
-    routing::{get, post},
+    routing::get,
 };
 
 use crate::handlers::user_handler;
@@ -11,7 +11,6 @@ use repositories::user_repository::UserRepository;
 pub fn user_routes(repo: Arc<UserRepository>) -> Router {
     Router::new()
         .route("/users", get(user_handler::list_users))
-        .route("/users", post(user_handler::create_user))
         .route(
             "/users/{id}",
             get(user_handler::get_user)

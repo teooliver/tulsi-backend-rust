@@ -10,22 +10,6 @@ async fn setup() -> TestServer {
 }
 
 #[tokio::test]
-async fn create_user_returns_201_with_body() {
-    let server = setup().await;
-
-    let response = server
-        .post("/users")
-        .json(&json!({"name": "Alice", "email": "alice@test.com"}))
-        .await;
-
-    response.assert_status(StatusCode::CREATED);
-    let body: serde_json::Value = response.json();
-    assert_eq!(body["name"], "Alice");
-    assert_eq!(body["email"], "alice@test.com");
-    assert!(body["id"].as_str().is_some());
-}
-
-#[tokio::test]
 async fn list_users_returns_200_with_empty_array() {
     let server = setup().await;
 
@@ -40,14 +24,8 @@ async fn list_users_returns_200_with_empty_array() {
 async fn list_users_returns_created_users() {
     let server = setup().await;
 
-    server
-        .post("/users")
-        .json(&json!({"name": "Alice", "email": "alice@test.com"}))
-        .await;
-    server
-        .post("/users")
-        .json(&json!({"name": "Bob", "email": "bob@test.com"}))
-        .await;
+    common::register_user(&server, "Alice", "alice@test.com").await;
+    common::register_user(&server, "Bob", "bob@test.com").await;
 
     let response = server.get("/users").await;
 
@@ -60,11 +38,7 @@ async fn list_users_returns_created_users() {
 async fn get_user_by_id_returns_200() {
     let server = setup().await;
 
-    let created: serde_json::Value = server
-        .post("/users")
-        .json(&json!({"name": "Alice", "email": "alice@test.com"}))
-        .await
-        .json();
+    let created = common::register_user(&server, "Alice", "alice@test.com").await;
     let id = created["id"].as_str().unwrap();
 
     let response = server.get(&format!("/users/{id}")).await;
@@ -98,11 +72,7 @@ async fn get_user_invalid_uuid_returns_400() {
 async fn update_user_returns_200() {
     let server = setup().await;
 
-    let created: serde_json::Value = server
-        .post("/users")
-        .json(&json!({"name": "Alice", "email": "alice@test.com"}))
-        .await
-        .json();
+    let created = common::register_user(&server, "Alice", "alice@test.com").await;
     let id = created["id"].as_str().unwrap();
 
     let response = server
@@ -120,11 +90,7 @@ async fn update_user_returns_200() {
 async fn update_user_partial_fields() {
     let server = setup().await;
 
-    let created: serde_json::Value = server
-        .post("/users")
-        .json(&json!({"name": "Alice", "email": "alice@test.com"}))
-        .await
-        .json();
+    let created = common::register_user(&server, "Alice", "alice@test.com").await;
     let id = created["id"].as_str().unwrap();
 
     let response = server
@@ -155,11 +121,7 @@ async fn update_user_not_found_returns_404() {
 async fn delete_user_returns_204() {
     let server = setup().await;
 
-    let created: serde_json::Value = server
-        .post("/users")
-        .json(&json!({"name": "Alice", "email": "alice@test.com"}))
-        .await
-        .json();
+    let created = common::register_user(&server, "Alice", "alice@test.com").await;
     let id = created["id"].as_str().unwrap();
 
     let response = server.delete(&format!("/users/{id}")).await;
@@ -183,53 +145,10 @@ async fn delete_user_not_found_returns_404() {
 }
 
 #[tokio::test]
-async fn create_user_missing_fields_returns_422() {
-    let server = setup().await;
-
-    let response = server.post("/users").json(&json!({})).await;
-
-    response.assert_status(StatusCode::UNPROCESSABLE_ENTITY);
-}
-
-#[tokio::test]
-async fn create_user_missing_email_returns_422() {
-    let server = setup().await;
-
-    let response = server
-        .post("/users")
-        .json(&json!({"name": "Alice"}))
-        .await;
-
-    response.assert_status(StatusCode::UNPROCESSABLE_ENTITY);
-}
-
-#[tokio::test]
-async fn create_user_duplicate_email_returns_500() {
-    let server = setup().await;
-
-    server
-        .post("/users")
-        .json(&json!({"name": "Alice", "email": "alice@test.com"}))
-        .await;
-
-    let response = server
-        .post("/users")
-        .json(&json!({"name": "Bob", "email": "alice@test.com"}))
-        .await;
-
-    // Currently returns 500 due to unique constraint violation
-    response.assert_status(StatusCode::INTERNAL_SERVER_ERROR);
-}
-
-#[tokio::test]
 async fn list_user_tasks_returns_empty_for_new_user() {
     let server = setup().await;
 
-    let user: serde_json::Value = server
-        .post("/users")
-        .json(&json!({"name": "Alice", "email": "alice@test.com"}))
-        .await
-        .json();
+    let user = common::register_user(&server, "Alice", "alice@test.com").await;
     let user_id = user["id"].as_str().unwrap();
 
     let response = server.get(&format!("/users/{user_id}/tasks")).await;
@@ -254,11 +173,7 @@ async fn list_user_tasks_returns_assigned_tasks() {
     // Creating tasks needs a real user: the Author is a foreign key to users.
     let server = common::authed_server().await;
 
-    let user: serde_json::Value = server
-        .post("/users")
-        .json(&json!({"name": "Alice", "email": "alice@test.com"}))
-        .await
-        .json();
+    let user = common::register_user(&server, "Alice", "alice@test.com").await;
     let user_id = user["id"].as_str().unwrap();
 
     server

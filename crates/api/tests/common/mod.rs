@@ -85,6 +85,23 @@ pub async fn auth_token(server: &TestServer) -> String {
     body["token"].as_str().unwrap().to_string()
 }
 
+/// Registers a user through `/auth/register` (the only way to create a user)
+/// and returns the `user` object from the response.
+#[allow(dead_code)]
+pub async fn register_user(server: &TestServer, name: &str, email: &str) -> serde_json::Value {
+    let response = server
+        .post("/auth/register")
+        .json(&serde_json::json!({
+            "name": name,
+            "email": email,
+            "password": "test_password_123"
+        }))
+        .await;
+    response.assert_status(axum::http::StatusCode::CREATED);
+    let body: serde_json::Value = response.json();
+    body["user"].clone()
+}
+
 /// Mints a JWT for an arbitrary user_id without touching the database.
 /// Use this for tests on handlers that don't store the auth user via FK.
 #[allow(dead_code)]
